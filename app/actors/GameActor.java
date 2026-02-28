@@ -22,28 +22,37 @@ import events.UnitStopped;
 import play.libs.Json;
 import structures.GameState;
 import utils.ImageListForPreLoad;
-import play.libs.Json;
 
 /**
- * The game actor is an Akka Actor that receives events from the user front-end UI (e.g. when 
- * the user clicks on the board) via a websocket connection. When an event arrives, the 
- * processMessage() method is called, which can be used to react to the event. The Game actor 
- * also includes an ActorRef object which can be used to issue commands to the UI to change 
- * what the user sees. The GameActor is created when the user browser creates a websocket
+ * The game actor is an Akka Actor that receives events from the user front-end
+ * UI (e.g. when
+ * the user clicks on the board) via a websocket connection. When an event
+ * arrives, the
+ * processMessage() method is called, which can be used to react to the event.
+ * The Game actor
+ * also includes an ActorRef object which can be used to issue commands to the
+ * UI to change
+ * what the user sees. The GameActor is created when the user browser creates a
+ * websocket
  * connection to back-end services (on load of the game web page).
+ * 
  * @author Dr. Richard McCreadie
  *
  */
 public class GameActor extends AbstractActor {
 
-	private ObjectMapper mapper = new ObjectMapper(); // Jackson Java Object Serializer, is used to turn java objects to Strings
+	private ObjectMapper mapper = new ObjectMapper(); // Jackson Java Object Serializer, is used to turn java objects to
+														// Strings
 	private ActorRef out; // The ActorRef can be used to send messages to the front-end UI
-	private Map<String,EventProcessor> eventProcessors; // Classes used to process each type of event
-    private final GameState gameState = new GameState();
+	private Map<String, EventProcessor> eventProcessors; // Classes used to process each type of event
+
+	private final GameState gameState = new GameState(); //Same game state will be present scross whole game session
 
 	/**
-	 * Constructor for the GameActor. This is called by the GameController when the websocket
+	 * Constructor for the GameActor. This is called by the GameController when the
+	 * websocket
 	 * connection to the front-end is established.
+	 * 
 	 * @param out
 	 */
 	@SuppressWarnings("deprecation")
@@ -52,7 +61,7 @@ public class GameActor extends AbstractActor {
 		this.out = out; // save this, so we can send commands to the front-end later
 
 		// create class instances to respond to the various events that we might recieve
-		eventProcessors = new HashMap<String,EventProcessor>();
+		eventProcessors = new HashMap<String, EventProcessor>();
 		eventProcessors.put("initalize", new Initalize());
 		eventProcessors.put("heartbeat", new Heartbeat());
 		eventProcessors.put("unitMoving", new UnitMoving());
@@ -61,12 +70,13 @@ public class GameActor extends AbstractActor {
 		eventProcessors.put("cardclicked", new CardClicked());
 		eventProcessors.put("endturnclicked", new EndTurnClicked());
 		eventProcessors.put("otherclicked", new OtherClicked());
-		
+
 		// Initalize a new game state object
-		
+		// this.gameState = new GameState();
+
 		// Get the list of image files to pre-load the UI with
 		Set<String> images = ImageListForPreLoad.getImageListForPreLoad();
-		
+
 		try {
 			ObjectNode readyMessage = Json.newObject();
 			readyMessage.put("messagetype", "actorReady");
@@ -77,9 +87,21 @@ public class GameActor extends AbstractActor {
 		}
 	}
 
+	//Commenting as game state is already created at top class level , not required in constructor
+	
+	// public GameState getGameState() {
+	// 	return gameState;
+	// }
+
+	// public boolean hasGameState() {
+	// 	return gameState != null;
+	// }
+
 	/**
-	 * This method simply farms out the processing of the json messages from the front-end to the
+	 * This method simply farms out the processing of the json messages from the
+	 * front-end to the
 	 * processMessage method
+	 * 
 	 * @return
 	 */
 	public Receive createReceive() {
@@ -93,24 +115,26 @@ public class GameActor extends AbstractActor {
 	/**
 	 * This looks up an event processor for the specified message type.
 	 * Note that this processing is asynchronous.
+	 * 
 	 * @param messageType
 	 * @param message
 	 * @return
 	 * @throws Exception
 	 */
-	@SuppressWarnings({"deprecation"})
-	public void processMessage(String messageType, JsonNode message) throws Exception{
+	@SuppressWarnings({ "deprecation" })
+	public void processMessage(String messageType, JsonNode message) throws Exception {
 
 		EventProcessor processor = eventProcessors.get(messageType);
-		if (processor==null) {
+		if (processor == null) {
 			// Unknown event type received
-			System.err.println("GameActor: Recieved unknown event type "+messageType);
+			System.err.println("GameActor: Recieved unknown event type " + messageType);
 		} else {
+			// This proves every inbound message increments exactly once and in order.
+			gameState.actionSeq++;
 			processor.processEvent(out, gameState, message); // process the event
 		}
 	}
-	
-	
+
 	public void reportError(String errorText) {
 		ObjectNode returnMessage = Json.newObject();
 		returnMessage.put("messagetype", "ERR");
@@ -118,8 +142,3 @@ public class GameActor extends AbstractActor {
 		out.tell(returnMessage, out);
 	}
 }
-
-
-
-
-

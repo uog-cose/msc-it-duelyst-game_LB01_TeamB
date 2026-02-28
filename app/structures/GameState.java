@@ -14,6 +14,7 @@ public class GameState {
 
 	public boolean gameInitalised = false;
 	public boolean something = false;
+	public long actionSeq = 0;
 
 	// Players (stats)
     public Player humanPlayer = new Player();
@@ -52,3 +53,5 @@ public class GameState {
 		return board[x][y];
 	}
 }
+
+

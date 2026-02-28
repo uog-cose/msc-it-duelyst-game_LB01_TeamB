@@ -60,6 +60,7 @@ public class InitalizationTest {
 		initalizeProcessor.processEvent(null, gameState, eventMessage); // send it to the initalize event processor
 
 		assertTrue(gameState.gameInitalised); // check that this updated the game state
+		assertTrue(gameState.actionSeq >= 1); //checking action sequence incrementing as expected
 		// [SC-102] Check that the 9x5 board was created and filled with Tiles
 		assertTrue(gameState.board != null);
 		assertTrue(gameState.board.length == 9);

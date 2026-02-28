@@ -29,6 +29,7 @@ public class Initalize implements EventProcessor {
 
 		gameState.gameInitalised = true;
 		gameState.something = true;
+		gameState.actionSeq++;
 
 		// [SC-102] Initialize the 9x5 game board when the game starts
 		gameState.initBoardArray();

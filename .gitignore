@@ -24,3 +24,4 @@ null/
 # Runtime
 *.log
 EOF
+run_game.sh

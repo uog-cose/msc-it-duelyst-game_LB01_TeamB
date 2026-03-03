@@ -27,6 +27,10 @@ public class Tile {
 	int height;
 	int tilex;
 	int tiley;
+
+	// Holds the unit currently on this tile
+	private Unit unit = null;
+
 	
 	public Tile() {}
 	
@@ -93,6 +97,16 @@ public class Tile {
 	}
 	public void setTiley(int tiley) {
 		this.tiley = tiley;
+	}
+
+	// Get the unit currently standing on this tile (SC-102)
+	public Unit getUnit() {
+		return unit;
+	}
+
+	// Place a unit onto this tile (SC-102)
+	public void setUnit(Unit unit) {
+		this.unit = unit;
 	}
 	
 	/**

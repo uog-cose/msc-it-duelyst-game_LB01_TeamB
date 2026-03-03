@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import akka.actor.ActorRef;
 import commands.BasicCommands;
 import structures.GameState;
+import structures.basic.Card;
 
 /**
  * Indicates that the user has clicked an object on the game canvas, in this case
@@ -24,6 +25,23 @@ public class EndTurnClicked implements EventProcessor{
 		
 
 		System.out.println("END TURN CLICKED: humanTurn was " + gameState.humanTurn + " turn=" + gameState.turnNumber);
+		// SC-107: Draw & Burn logic before switching turns
+		if (gameState.humanTurn) {
+			if (gameState.humanPlayer.deck != null && !gameState.humanPlayer.deck.isEmpty()) {
+				Card drawnCard = gameState.humanPlayer.deck.remove(0);
+				
+				if (gameState.humanPlayer.hand.size() < 6) {
+					gameState.humanPlayer.hand.add(drawnCard);
+					int newPosition = gameState.humanPlayer.hand.size();
+					BasicCommands.drawCard(out, drawnCard, newPosition, 0);
+				} else {
+					BasicCommands.addPlayer1Notification(out, "Hand Full! Card Burned!", 2);
+				}
+			} else {
+				BasicCommands.addPlayer1Notification(out, "Deck is Empty!", 2);
+			}
+		}
+
 		// SC-502: sequential event marker
 		gameState.actionSeq++;
 
@@ -38,16 +56,15 @@ public class EndTurnClicked implements EventProcessor{
 		// SC-106: refresh mana at start of active player's turn
 		int refreshedMana = Math.min(9, gameState.turnNumber + 1);
 
-		if (gameState.humanTurn) {
+	if (gameState.humanTurn) {
 			gameState.humanPlayer.setMana(refreshedMana);
-			if (out != null) {
-				BasicCommands.setPlayer1Mana(out, gameState.humanPlayer);
-			}
 		} else {
 			gameState.aiPlayer.setMana(refreshedMana);
-			if (out != null) {
-				BasicCommands.setPlayer2Mana(out, gameState.aiPlayer);
-			}
+		}
+		
+		// SC-402: Use new utility to sync UI easily
+		if (out != null) {
+			gameState.syncPlayerStatsUI(out);
 		}
 	}
 

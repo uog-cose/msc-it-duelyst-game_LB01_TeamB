@@ -77,6 +77,15 @@ public class Initalize implements EventProcessor {
 			}
 		}
 
+		gameState.turnNumber = 1;
+		gameState.humanTurn = true;
+
+		gameState.humanPlayer.setHealth(20);
+		gameState.aiPlayer.setHealth(20);
+
+		gameState.humanPlayer.setMana(gameState.turnNumber + 1); // 2
+		gameState.aiPlayer.setMana(0);
+
 		if (out != null) {
 				// initializing hp health = 20
 			BasicCommands.setPlayer1Health(out, gameState.humanPlayer);

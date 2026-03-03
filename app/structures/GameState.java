@@ -15,6 +15,8 @@ public class GameState {
 	public boolean gameInitalised = false;
 	public boolean something = false;
 	public long actionSeq = 0;
+	public int turnNumber = 1;
+	public boolean humanTurn = true;
 
 	// Players (stats)
     public Player humanPlayer = new Player();

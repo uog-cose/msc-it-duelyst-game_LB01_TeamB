@@ -17,6 +17,7 @@ import structures.basic.Tile;
 import utils.BasicObjectBuilders;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
+import events.EndTurnClicked;
 
 
 /**
@@ -99,6 +100,28 @@ public class InitalizationTest {
 
 		assertEquals(aiX0,gameState.aiAvatar.getPosition().getTilex());
 		assertEquals(aiY0,gameState.aiAvatar.getPosition().getTiley());
+
+
+        //SC-105-106 end turn clicked and mana refreshed
+		EndTurnClicked end = new EndTurnClicked();
+
+		// Initial state after Initialize
+		assertTrue(gameState.humanTurn);
+		assertEquals(2, gameState.humanPlayer.getMana());
+		assertEquals(0, gameState.aiPlayer.getMana());
+		assertEquals(1, gameState.turnNumber);
+
+		// FIRST end turn → AI turn
+		end.processEvent(null, gameState, null);
+		assertFalse(gameState.humanTurn);
+		assertEquals(2, gameState.aiPlayer.getMana());
+		assertEquals(1, gameState.turnNumber);
+
+		// SECOND end turn → back to human
+		end.processEvent(null, gameState, null);
+		assertTrue(gameState.humanTurn);
+		assertEquals(2, gameState.turnNumber);
+		assertEquals(3, gameState.humanPlayer.getMana());
 
 		
 		Tile tile = BasicObjectBuilders.loadTile(3, 2); // create a tile

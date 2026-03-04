@@ -2,6 +2,8 @@ package structures;
 import structures.basic.Player;
 import structures.basic.Tile;
 import structures.basic.Unit;
+import akka.actor.ActorRef;
+import commands.BasicCommands;
 /**
  * This class can be used to hold information about the on-going game.
  * Its created with the GameActor.
@@ -53,6 +55,14 @@ public class GameState {
 			return null;
 		}
 		return board[x][y];
+	}
+
+	// SC-402: Sync UI stats for both players
+	public void syncPlayerStatsUI(ActorRef out) {
+		BasicCommands.setPlayer1Health(out, this.humanPlayer);
+		BasicCommands.setPlayer1Mana(out, this.humanPlayer);
+		BasicCommands.setPlayer2Health(out, this.aiPlayer);
+		BasicCommands.setPlayer2Mana(out, this.aiPlayer);
 	}
 }
 

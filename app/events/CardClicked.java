@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import akka.actor.ActorRef;
 import structures.GameState;
+import commands.BasicCommands;
 
 /**
  * Indicates that the user has clicked an object on the game canvas, in this case a card.
@@ -24,8 +25,16 @@ public class CardClicked implements EventProcessor{
 	public void processEvent(ActorRef out, GameState gameState, JsonNode message) {
 		
 		int handPosition = message.get("position").asInt();
-		
-		
+		int cardCost = 2;
+        int currentMana = gameState.humanPlayer.getMana();
+
+    if (cardCost > currentMana) {
+        BasicCommands.addPlayer1Notification(out, "Not enough mana!", 2);
+        return;
+    }
+
+    gameState.humanPlayer.setMana(currentMana - cardCost);	
 	}
 
 }
+

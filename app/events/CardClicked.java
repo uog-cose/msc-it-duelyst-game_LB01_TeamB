@@ -26,7 +26,5 @@ public class CardClicked implements EventProcessor {
 			BasicCommands.addPlayer1Notification(out, "Not enough mana", 2);
 			return;
 		}
-
-		// (Future logic for playing a card (SC-201) will go down here...)
 	}
 }

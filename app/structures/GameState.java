@@ -1,17 +1,20 @@
 package structures;
+
+import java.util.ArrayList;
+import java.util.List;
+
 import structures.basic.Player;
 import structures.basic.Tile;
 import structures.basic.Unit;
 import akka.actor.ActorRef;
 import commands.BasicCommands;
+
 /**
  * This class can be used to hold information about the on-going game.
  * Its created with the GameActor.
- * 
- * @author Dr. Richard McCreadie
+ * * @author Dr. Richard McCreadie
  *
  */
-
 public class GameState {
 
 	public boolean gameInitalised = false;
@@ -20,13 +23,16 @@ public class GameState {
 	public int turnNumber = 1;
 	public boolean humanTurn = true;
 
+	// [SC-505] List to keep track of currently highlighted tiles on the board
+	public List<Tile> highlightedTiles = new ArrayList<>();
+
 	// Players (stats)
-    public Player humanPlayer = new Player();
-    public Player aiPlayer = new Player();
+	public Player humanPlayer = new Player();
+	public Player aiPlayer = new Player();
 
 	// Avatars 
-    public Unit humanAvatar = null;
-    public Unit aiAvatar = null;
+	public Unit humanAvatar = null;
+	public Unit aiAvatar = null;
 
 	// 9x5 grid for the game board (SC-102)
 	public Tile[][] board = new Tile[9][5];

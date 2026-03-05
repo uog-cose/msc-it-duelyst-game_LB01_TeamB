@@ -6,7 +6,7 @@ import akka.actor.ActorRef;
 import commands.BasicCommands;
 import structures.GameState;
 import structures.basic.Card;
-import structures.basic.Tile; // Required to wipe the board tiles
+import structures.basic.Tile;
 
 /**
  * Indicates that the user has clicked an object on the game canvas, in this case
@@ -27,15 +27,12 @@ public class EndTurnClicked implements EventProcessor{
 		// ==========================================
 		// [SC-505] Turn End Cleanup / State Reset
 		// ==========================================
-		// Wipe the board clean: loop through the 9x5 grid and remove all highlights (mode 0)
-		for (int x = 0; x < gameState.board.length; x++) {
-			for (int y = 0; y < gameState.board[x].length; y++) {
-				Tile tile = gameState.board[x][y];
-				if (tile != null) {
-					// Mode 0 is the default unhighlighted state for tiles
-					BasicCommands.drawTile(out, tile, 0);
-				}
+		// Optimized: Only clear tiles that are actually highlighted to prevent WebSocket buffer overflow.
+		if (gameState.highlightedTiles != null && !gameState.highlightedTiles.isEmpty()) {
+			for (Tile tile : gameState.highlightedTiles) {
+				BasicCommands.drawTile(out, tile, 0);
 			}
+			gameState.highlightedTiles.clear();
 		}
 		// ==========================================
 

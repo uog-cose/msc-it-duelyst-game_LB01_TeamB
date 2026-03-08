@@ -32,7 +32,9 @@ public class CardClicked implements EventProcessor{
 		boolean success = gameState.humanPlayer.spendMana(cardCost);
 
 		if (!success) {
+			if (out != null) {
 			BasicCommands.addPlayer1Notification(out, "Not enough mana!", 2);
+			}
 			return;
 		}
 	}

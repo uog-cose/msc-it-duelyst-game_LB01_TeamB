@@ -33,12 +33,18 @@ public class EndTurnClicked implements EventProcessor{
 				if (gameState.humanPlayer.hand.size() < 6) {
 					gameState.humanPlayer.hand.add(drawnCard);
 					int newPosition = gameState.humanPlayer.hand.size();
+					if (out != null) {
 					BasicCommands.drawCard(out, drawnCard, newPosition, 0);
+				}
 				} else {
+					if (out != null) {
 					BasicCommands.addPlayer1Notification(out, "Hand Full! Card Burned!", 2);
+					}
 				}
 			} else {
+				if (out != null) {
 				BasicCommands.addPlayer1Notification(out, "Deck is Empty!", 2);
+				}
 			}
 		}
 

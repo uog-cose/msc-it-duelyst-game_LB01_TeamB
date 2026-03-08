@@ -1,9 +1,11 @@
 package structures;
+
 import structures.basic.Player;
 import structures.basic.Tile;
 import structures.basic.Unit;
 import akka.actor.ActorRef;
 import commands.BasicCommands;
+
 /**
  * This class can be used to hold information about the on-going game.
  * Its created with the GameActor.
@@ -21,12 +23,12 @@ public class GameState {
 	public boolean humanTurn = true;
 
 	// Players (stats)
-    public Player humanPlayer = new Player();
-    public Player aiPlayer = new Player();
+	public Player humanPlayer = new Player();
+	public Player aiPlayer = new Player();
 
-	// Avatars 
-    public Unit humanAvatar = null;
-    public Unit aiAvatar = null;
+	// Avatars
+	public Unit humanAvatar = null;
+	public Unit aiAvatar = null;
 
 	// 9x5 grid for the game board (SC-102)
 	public Tile[][] board = new Tile[9][5];
@@ -55,6 +57,31 @@ public class GameState {
 			return null;
 		}
 		return board[x][y];
+
+	}
+
+	// SC-203: Highlight valid movement tiles for a unit
+	public void highlightValidMoveTiles(ActorRef out, int startX, int startY) {
+		if (board == null)
+			return;
+
+		// Movement rules:
+		// - 2 tiles cardinal directions
+		// - 1 tile diagonally
+		int[][] offsets = {
+				{ 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }, // immediate next tiles
+				{ 2, 0 }, { -2, 0 }, { 0, 2 }, { 0, -2 }, // cardinal
+				{ 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 } // diagonal
+		};
+
+		for (int[] offset : offsets) {
+			int nx = startX + offset[0];
+			int ny = startY + offset[1];
+
+			if (isWithinBoard(nx, ny) && isTileFree(nx, ny)) {
+				BasicCommands.drawTile(out, board[nx][ny], 1); // mode 1 = highlight
+			}
+		}
 	}
 
 	// SC-402: Sync UI stats for both players
@@ -65,5 +92,3 @@ public class GameState {
 		BasicCommands.setPlayer2Mana(out, this.aiPlayer);
 	}
 }
-
-

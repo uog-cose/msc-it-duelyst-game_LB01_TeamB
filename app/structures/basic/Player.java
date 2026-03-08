@@ -44,7 +44,18 @@ public class Player {
 	public void setMana(int mana) {
 		this.mana = mana;
 	}
-	
-	
-	
+	public boolean spendMana(int cost) {
+		if (mana < cost) {
+			return false;
+		}
+
+		mana -= cost;
+
+		if (mana < 0) {
+			mana = 0;
+		}
+
+		return true;
+	}		
 }
+

@@ -6,8 +6,19 @@ import akka.actor.ActorRef;
 import commands.BasicCommands;
 import structures.GameState;
 import structures.basic.Card;
-
-public class CardClicked implements EventProcessor {
+/**
+ * Indicates that the user has clicked an object on the game canvas, in this case a card.
+ * The event returns the position in the player's hand the card resides within.
+ * 
+ * { 
+ *   messageType = “cardClicked”
+ *   position = <hand index position [1-6]>
+ * }
+ * 
+ * @author Dr. Richard McCreadie
+ *
+ */
+public class CardClicked implements EventProcessor{
 
 	@Override
 	public void processEvent(ActorRef out, GameState gameState, JsonNode message) {
@@ -19,12 +30,19 @@ public class CardClicked implements EventProcessor {
 			return;
 		}
 
-		Card clickedCard = gameState.humanPlayer.hand.get(handPosition - 1);
+		Card selectedCard = gameState.humanPlayer.hand.get(handPosition - 1);
+		int cardCost = selectedCard.getManacost();
 
-		// [SC-204] Mana check interceptor
-		if (gameState.humanPlayer.getMana() < clickedCard.getManacost()) {
-			BasicCommands.addPlayer1Notification(out, "Not enough mana", 2);
+		boolean success = gameState.humanPlayer.spendMana(cardCost);
+
+		if (!success) {
+			if (out != null) {
+			BasicCommands.addPlayer1Notification(out, "Not enough mana!", 2);
+			}
 			return;
 		}
 	}
 }
+
+
+

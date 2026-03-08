@@ -25,7 +25,6 @@ import play.libs.Json;
 import events.EndTurnClicked;
 import static org.junit.Assert.*;
 
-
 import events.TileClicked;
 import play.libs.Json;
 
@@ -55,12 +54,12 @@ public class InitalizationTest {
 
 	static class RecordingTell implements DummyTell {
 		private final java.util.List<ObjectNode> messages = new java.util.ArrayList<>();
-	
+
 		@Override
 		public void tell(ObjectNode message) {
 			messages.add(message);
 		}
-	
+
 		public int countHighlightedTiles() {
 			int count = 0;
 			for (ObjectNode msg : messages) {
@@ -73,7 +72,7 @@ public class InitalizationTest {
 			}
 			return count;
 		}
-	
+
 		public void clear() {
 			messages.clear();
 		}
@@ -100,7 +99,7 @@ public class InitalizationTest {
 		initalizeProcessor.processEvent(null, gameState, eventMessage); // send it to the initalize event processor
 
 		assertTrue(gameState.gameInitalised); // check that this updated the game state
-		assertTrue(gameState.actionSeq >= 1); //checking action sequence incrementing as expected
+		assertTrue(gameState.actionSeq >= 1); // checking action sequence incrementing as expected
 		// [SC-102] Check that the 9x5 board was created and filled with Tiles
 		assertTrue(gameState.board != null);
 		assertTrue(gameState.board.length == 9);
@@ -140,36 +139,34 @@ public class InitalizationTest {
 		assertEquals(aiX0, gameState.aiAvatar.getPosition().getTilex());
 		assertEquals(aiY0, gameState.aiAvatar.getPosition().getTiley());
 
-		// ----------------------------
-// SC-203: Highlight valid movement tiles
-// ----------------------------
-RecordingTell rec = new RecordingTell();
-BasicCommands.altTell = rec;
+		// SC-203: Highlight valid movement tiles
+		RecordingTell rec = new RecordingTell();
+		BasicCommands.altTell = rec;
 
-TileClicked tileClicked = new TileClicked();
-ObjectNode tileMessage = Json.newObject();
+		TileClicked tileClicked = new TileClicked();
+		ObjectNode tileMessage = Json.newObject();
 
-// Human avatar is at (1,2) in 0-based code coordinates
-tileMessage.put("tilex", 1);
-tileMessage.put("tiley", 2);
+		// Human avatar is at (1,2) in 0-based code coordinates
+		tileMessage.put("tilex", 1);
+		tileMessage.put("tiley", 2);
 
-tileClicked.processEvent(null, gameState, tileMessage);
+		tileClicked.processEvent(null, gameState, tileMessage);
 
-// Current movement rules in GameState.highlightValidMoveTiles()
-// should highlight 11 valid tiles from (1,2)
-assertEquals(11, rec.countHighlightedTiles());
+		// Current movement rules in GameState.highlightValidMoveTiles()
+		// should highlight 11 valid tiles from (1,2)
+		assertEquals(11, rec.countHighlightedTiles());
 
-// Clicking an empty tile should not highlight anything
-rec.clear();
-ObjectNode emptyTileMessage = Json.newObject();
-emptyTileMessage.put("tilex", 4);
-emptyTileMessage.put("tiley", 4);
+		// Clicking an empty tile should not highlight anything
+		rec.clear();
+		ObjectNode emptyTileMessage = Json.newObject();
+		emptyTileMessage.put("tilex", 4);
+		emptyTileMessage.put("tiley", 4);
 
-tileClicked.processEvent(null, gameState, emptyTileMessage);
-assertEquals(0, rec.countHighlightedTiles());
+		tileClicked.processEvent(null, gameState, emptyTileMessage);
+		assertEquals(0, rec.countHighlightedTiles());
 
-// cleanup
-BasicCommands.altTell = null;
+		// cleanup
+		BasicCommands.altTell = null;
 
 		// SC-105-106 end turn clicked and mana refreshed
 		EndTurnClicked end = new EndTurnClicked();
@@ -221,7 +218,8 @@ BasicCommands.altTell = null;
 		assertEquals(cardCost - 1, gameState.humanPlayer.getMana());
 
 		Tile tile = BasicObjectBuilders.loadTile(3, 2); // create a tile
-		// BasicCommands.drawTile(null, tile, 0); // draw tile, but will use altTell, so nothing should happen
+		// BasicCommands.drawTile(null, tile, 0); // draw tile, but will use altTell, so
+		// nothing should happen
 
 	}
 
@@ -244,6 +242,5 @@ BasicCommands.altTell = null;
 
 		assertSame(firstRef, gameState);
 	}
-	
 
 }

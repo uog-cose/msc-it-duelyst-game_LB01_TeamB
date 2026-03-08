@@ -24,17 +24,21 @@ public class CardClicked implements EventProcessor{
 	@Override
 	public void processEvent(ActorRef out, GameState gameState, JsonNode message) {
 		
-		int handPosition = message.get("position").asInt();
-		int cardCost = 2;
-        int currentMana = gameState.humanPlayer.getMana();
-
-    if (cardCost > currentMana) {
-        BasicCommands.addPlayer1Notification(out, "Not enough mana!", 2);
-        return;
-    }
-
+	int handPosition = message.get("position").asInt();
+	
+	Card selectedCard = gameState.humanPlayer.hand.get(handPosition - 1);
+	
+	int cardCost = selectedCard.getManacost();
+	
+	boolean success = gameState.humanPlayer.spendMana(cardCost);
+	
+	if (!success) {
+	    BasicCommands.addPlayer1Notification(out, "Not enough mana!", 2);
+	    return;
+}
     gameState.humanPlayer.setMana(currentMana - cardCost);	
 	}
 
 }
+
 

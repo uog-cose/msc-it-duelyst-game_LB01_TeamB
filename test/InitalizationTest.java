@@ -3,7 +3,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -13,12 +12,16 @@ import commands.CheckMessageIsNotNullOnTell;
 import events.Initalize;
 import play.libs.Json;
 import structures.GameState;
+import structures.basic.Card;
 import structures.basic.Tile;
 import utils.BasicObjectBuilders;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
-import events.EndTurnClicked;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import events.CardClicked;
+import play.libs.Json;
+import events.EndTurnClicked;
 
 /**
  * This is an example of a JUnit test. In this case, we want to be able to test
@@ -45,11 +48,13 @@ public class InitalizationTest {
 	@Test
 	public void checkInitalized() {
 
-		// First override the alt tell variable so we can issue commands without a running front-end
+		// First override the alt tell variable so we can issue commands without a
+		// running front-end
 		CheckMessageIsNotNullOnTell altTell = new CheckMessageIsNotNullOnTell(); // create an alternative tell
 		BasicCommands.altTell = altTell; // specify that the alternative tell should be used
 
-		// As we are not starting the front-end, we have no GameActor, so lets manually create
+		// As we are not starting the front-end, we have no GameActor, so lets manually
+		// create
 		// the components we want to test
 		GameState gameState = new GameState(); // create state storage
 		Initalize initalizeProcessor = new Initalize(); // create an initalize event processor
@@ -90,19 +95,18 @@ public class InitalizationTest {
 		assertNotNull(gameState.board[aiX0][aiY0]);
 
 		// Tiles containing avatars
-		assertEquals(gameState.humanAvatar,gameState.board[humanX0][humanY0].getUnit());
+		assertEquals(gameState.humanAvatar, gameState.board[humanX0][humanY0].getUnit());
 
-		assertEquals(gameState.aiAvatar,gameState.board[aiX0][aiY0].getUnit());
+		assertEquals(gameState.aiAvatar, gameState.board[aiX0][aiY0].getUnit());
 
 		// Avatar position matching tiles
 		assertEquals(humanX0, gameState.humanAvatar.getPosition().getTilex());
-		assertEquals(humanY0,gameState.humanAvatar.getPosition().getTiley());
+		assertEquals(humanY0, gameState.humanAvatar.getPosition().getTiley());
 
-		assertEquals(aiX0,gameState.aiAvatar.getPosition().getTilex());
-		assertEquals(aiY0,gameState.aiAvatar.getPosition().getTiley());
+		assertEquals(aiX0, gameState.aiAvatar.getPosition().getTilex());
+		assertEquals(aiY0, gameState.aiAvatar.getPosition().getTiley());
 
-
-        //SC-105-106 end turn clicked and mana refreshed
+		// SC-105-106 end turn clicked and mana refreshed
 		EndTurnClicked end = new EndTurnClicked();
 
 		// Initial state after Initialize
@@ -123,30 +127,58 @@ public class InitalizationTest {
 		assertEquals(2, gameState.turnNumber);
 		assertEquals(3, gameState.humanPlayer.getMana());
 
-		
+		// SC-504: Mana invariant tests
+
+		// Direct Player test
+		gameState.humanPlayer.setMana(1);
+		boolean result = gameState.humanPlayer.spendMana(2);
+		assertFalse(result);
+		assertEquals(1, gameState.humanPlayer.getMana());
+
+		// Make sure at least one card exists in hand
+		assertTrue(gameState.humanPlayer.hand.size() > 0);
+
+		Card firstCard = gameState.humanPlayer.hand.get(0);
+		int cardCost = firstCard.getManacost();
+
+		CardClicked cardClicked = new CardClicked();
+		ObjectNode cardMessage = Json.newObject();
+		cardMessage.put("position", 1); // UI position is 1-based
+
+		// Case 1: Enough mana -> mana should reduce exactly by card cost
+		gameState.humanPlayer.setMana(cardCost);
+		cardClicked.processEvent(null, gameState, cardMessage);
+		assertEquals(0, gameState.humanPlayer.getMana());
+
+		// Case 2: Not enough mana -> mana should remain unchanged
+		gameState.humanPlayer.setMana(cardCost - 1);
+		cardClicked.processEvent(null, gameState, cardMessage);
+		assertEquals(cardCost - 1, gameState.humanPlayer.getMana());
+
 		Tile tile = BasicObjectBuilders.loadTile(3, 2); // create a tile
 		BasicCommands.drawTile(null, tile, 0); // draw tile, but will use altTell, so nothing should happen
 
 	}
-    @Test
-    public void gameState_should_persist_across_multiple_event_processors() {
 
-        CheckMessageIsNotNullOnTell altTell = new CheckMessageIsNotNullOnTell();
-        BasicCommands.altTell = altTell;
+	@Test
+	public void gameState_should_persist_across_multiple_event_processors() {
 
-        GameState gameState = new GameState();
-        assertNotNull(gameState);
+		CheckMessageIsNotNullOnTell altTell = new CheckMessageIsNotNullOnTell();
+		BasicCommands.altTell = altTell;
 
-        GameState firstRef = gameState;
+		GameState gameState = new GameState();
+		assertNotNull(gameState);
 
-        ObjectNode heartbeatMsg = Json.newObject();
-        new events.Heartbeat().processEvent(null, gameState, heartbeatMsg);
+		GameState firstRef = gameState;
 
-        ObjectNode otherClickedMsg = Json.newObject();
-        new events.OtherClicked().processEvent(null, gameState, otherClickedMsg);
+		ObjectNode heartbeatMsg = Json.newObject();
+		new events.Heartbeat().processEvent(null, gameState, heartbeatMsg);
 
-        assertSame(firstRef, gameState);
-    }
+		ObjectNode otherClickedMsg = Json.newObject();
+		new events.OtherClicked().processEvent(null, gameState, otherClickedMsg);
 
+		assertSame(firstRef, gameState);
+	}
 	
+
 }

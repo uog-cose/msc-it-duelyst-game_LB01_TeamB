@@ -53,19 +53,19 @@ public class CardClicked implements EventProcessor {
 
         gameState.clearCardSelection(out);
 
+        if (manaCost > gameState.humanPlayer.getMana()) {
+            if (out != null) {
+                BasicCommands.addPlayer1Notification(out, "Not enough mana", 2);
+            }
+            return;
+        }
+
         if (gameState.isSpellCard(clickedCard)) {
             gameState.humanPlayer.setMana(gameState.humanPlayer.getMana() - manaCost);
 
             if (out != null) {
                 BasicCommands.setPlayer1Mana(out, gameState.humanPlayer);
                 BasicCommands.addPlayer1Notification(out, "Spell cards are not part of SC-201", 2);
-            }
-            return;
-        }
-
-        if (manaCost > gameState.humanPlayer.getMana()) {
-            if (out != null) {
-                BasicCommands.addPlayer1Notification(out, "Not enough mana", 2);
             }
             return;
         }

@@ -15,7 +15,6 @@ import structures.basic.Unit;
 /**
  * This class can be used to hold information about the on-going game.
  * Its created with the GameActor.
- *
  * @author Dr. Richard McCreadie
  *
  */
@@ -34,6 +33,9 @@ public class GameState {
     // Avatars
     public Unit humanAvatar = null;
     public Unit aiAvatar = null;
+
+    // [SC-505] List to keep track of currently highlighted tiles on the board
+    public List<Tile> highlightedTiles = new ArrayList<>();
 
     // Units currently owned by each side (excluding avatars)
     public List<Unit> humanUnits = new ArrayList<>();
@@ -75,6 +77,30 @@ public class GameState {
             return null;
         }
         return board[x][y];
+    }
+
+    // SC-203: Highlight valid movement tiles for a unit
+    public void highlightValidMoveTiles(ActorRef out, int startX, int startY) {
+        if (board == null)
+            return;
+
+        // Movement rules:
+        // - 2 tiles cardinal directions
+        // - 1 tile diagonally
+        int[][] offsets = {
+                { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 },
+                { 2, 0 }, { -2, 0 }, { 0, 2 }, { 0, -2 },
+                { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 }
+        };
+
+        for (int[] offset : offsets) {
+            int nx = startX + offset[0];
+            int ny = startY + offset[1];
+
+            if (isWithinBoard(nx, ny) && isTileFree(nx, ny)) {
+                BasicCommands.drawTile(out, board[nx][ny], 1);
+            }
+        }
     }
 
     // SC-402: Sync UI stats for both players

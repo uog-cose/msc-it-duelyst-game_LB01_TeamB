@@ -43,6 +43,18 @@ public class TileClicked implements EventProcessor {
         }
 
         if (gameState.selectedCard == null || gameState.selectedHandPosition < 1) {
+            Tile clickedTile = gameState.getTile(tilex, tiley);
+
+            if (clickedTile != null && clickedTile.getUnit() != null) {
+                Unit clickedUnit = clickedTile.getUnit();
+
+                // allow movement highlight for human-owned unit / avatar
+                if (clickedUnit == gameState.humanAvatar || gameState.humanUnits.contains(clickedUnit)) {
+                    gameState.highlightValidMoveTiles(out, tilex, tiley);
+                    return;
+                }
+            }
+
             System.out.println("[SC-201] tileclick ignored: no selected card");
             return;
         }

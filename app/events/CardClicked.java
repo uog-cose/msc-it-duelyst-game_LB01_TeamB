@@ -54,24 +54,31 @@ public class CardClicked implements EventProcessor {
         gameState.clearCardSelection(out);
 
         if (gameState.isSpellCard(clickedCard)) {
-            BasicCommands.addPlayer1Notification(out, "Spell cards are not part of SC-201", 2);
+            if (out != null) {
+                BasicCommands.addPlayer1Notification(out, "Spell cards are not part of SC-201", 2);
+            }
             return;
         }
 
         if (manaCost > gameState.humanPlayer.getMana()) {
-            BasicCommands.addPlayer1Notification(out, "Not enough mana", 2);
+            if (out != null) {
+                BasicCommands.addPlayer1Notification(out, "Not enough mana", 2);
+            }
             return;
         }
 
         gameState.selectedCard = clickedCard;
         gameState.selectedHandPosition = handPosition;
-        BasicCommands.drawCard(out, clickedCard, handPosition, 1);
-
+        if (out != null) {
+            BasicCommands.drawCard(out, clickedCard, handPosition, 1);
+        }
         int validTargetCount = gameState.highlightValidSummonTiles(out);
         System.out.println("[SC-201] validTargetCount=" + validTargetCount);
 
         if (validTargetCount == 0) {
-            BasicCommands.addPlayer1Notification(out, "No valid summon tiles", 2);
+            if (out != null) {
+                BasicCommands.addPlayer1Notification(out, "No valid summon tiles", 2);
+            }
             gameState.clearCardSelection(out);
         }
     }

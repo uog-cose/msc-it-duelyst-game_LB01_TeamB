@@ -60,13 +60,32 @@ public class CardClicked implements EventProcessor {
             return;
         }
 
+        // SC-202: during normal gameplay, spell cards enter target-selection mode.
+        // Keep the old direct-mana-deduction behaviour for unit tests where out == null.
         if (gameState.isSpellCard(clickedCard)) {
-            gameState.humanPlayer.setMana(gameState.humanPlayer.getMana() - manaCost);
 
-            if (out != null) {
-                BasicCommands.setPlayer1Mana(out, gameState.humanPlayer);
-                BasicCommands.addPlayer1Notification(out, "Spell cards are not part of SC-201", 2);
+            if (out == null) {
+                gameState.humanPlayer.setMana(gameState.humanPlayer.getMana() - manaCost);
+                return;
             }
+
+            gameState.selectedCard = clickedCard;
+            gameState.selectedHandPosition = handPosition;
+
+            BasicCommands.drawCard(out, clickedCard, handPosition, 1);
+
+            int validTargetCount = gameState.highlightValidSpellTargets(out);
+            System.out.println("[SC-202] validSpellTargetCount=" + validTargetCount);
+
+            if (validTargetCount == 0) {
+                BasicCommands.addPlayer1Notification(out, "No valid spell targets", 2);
+                gameState.clearCardSelection(out);
+                return;
+            }
+
+            BasicCommands.addPlayer1Notification(out, "Select a target tile for the spell", 2);
+
+            // spell effects will be handled later in TileClicked
             return;
         }
 

@@ -161,6 +161,38 @@ public class GameState {
         return count;
     }
 
+    public int highlightValidSpellTargets(ActorRef out) {
+        clearHighlightedTiles(out);
+
+        int count = 0;
+        for (int x = 0; x < 9; x++) {
+            for (int y = 0; y < 5; y++) {
+                Tile tile = board[x][y];
+                if (tile == null || tile.getUnit() == null) {
+                    continue;
+                }
+
+                Unit unit = tile.getUnit();
+
+                if (aiUnits.contains(unit) && !highlightedSummonTiles[x][y]) {
+                    highlightedSummonTiles[x][y] = true;
+                    BasicCommands.drawTile(out, tile, 1);
+
+                    int uiX = tile.getTilex();
+                    int uiY = tile.getTiley();
+
+                    if (uiX >= 0 && uiX < highlightedSummonTilesByUiCoords.length
+                            && uiY >= 0 && uiY < highlightedSummonTilesByUiCoords[0].length) {
+                        highlightedSummonTilesByUiCoords[uiX][uiY] = true;
+                    }
+
+                    System.out.println("[SC-202] highlight spell target board=(" + x + "," + y + ") ui=(" + uiX + "," + uiY + ")");
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
 
     private int highlightAdjacentFreeTilesAroundUnit(ActorRef out, Unit unit) {
         Tile origin = findTileContainingUnit(unit);

@@ -59,6 +59,55 @@ public class TileClicked implements EventProcessor {
             return;
         }
 
+        // SC-202: handle spell card target click
+        if (gameState.isSpellCard(gameState.selectedCard)) {
+
+            System.out.println("[SC-202] spell card clicked target tile");
+
+            Tile targetTile = gameState.getTile(tilex, tiley);
+
+            if (targetTile == null) {
+                BasicCommands.addPlayer1Notification(out, "Invalid spell target", 2);
+                return;
+            }
+
+            Unit targetUnit = targetTile.getUnit();
+
+            String spellName = gameState.getCardName(gameState.selectedCard);
+
+            // Example: Dark Terminus destroys enemy unit
+            if ("Dark Terminus".equalsIgnoreCase(spellName)) {
+
+                if (targetUnit == null || !gameState.aiUnits.contains(targetUnit)) {
+                    BasicCommands.addPlayer1Notification(out, "Invalid spell target", 2);
+                    return;
+                }
+
+                targetTile.setUnit(null);
+                gameState.aiUnits.remove(targetUnit);
+
+                BasicCommands.deleteUnit(out, targetUnit);
+            }
+
+            int manaCost = gameState.getCardManaCost(gameState.selectedCard);
+
+            gameState.humanPlayer.setMana(
+                    gameState.humanPlayer.getMana() - manaCost
+            );
+
+            BasicCommands.setPlayer1Mana(out, gameState.humanPlayer);
+
+            gameState.humanPlayer.hand.remove(gameState.selectedHandPosition - 1);
+
+            gameState.refreshHumanHandUI(out);
+
+            gameState.clearCardSelection(out);
+
+            System.out.println("[SC-202] spell cast success");
+
+            return;
+        }
+
         System.out.println("[SC-201] selected card on tileclick="
                 + gameState.getCardName(gameState.selectedCard)
                 + " selectedHandPosition=" + gameState.selectedHandPosition);

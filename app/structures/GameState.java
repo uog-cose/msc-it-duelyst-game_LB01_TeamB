@@ -41,6 +41,22 @@ public class GameState {
     public List<Unit> humanUnits = new ArrayList<>();
     public List<Unit> aiUnits = new ArrayList<>();
 
+    // SC-303: Unit Selection State
+    public Unit selectedUnit = null;
+
+    public void clearUnitSelection(ActorRef out) {
+        clearHighlightedTiles(out);
+        selectedUnit = null;
+    }
+
+    public boolean isFriendlyUnit(Unit unit) {
+        return humanUnits.contains(unit) || unit == humanAvatar;
+    }
+
+    public boolean isEnemyUnit(Unit unit) {
+        return aiUnits.contains(unit) || unit == aiAvatar;
+    }
+
     // Card-play state used for SC-201 / SC-205
     public Card selectedCard = null;
     public int selectedHandPosition = -1;

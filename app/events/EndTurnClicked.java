@@ -65,6 +65,24 @@ public class EndTurnClicked implements EventProcessor{
 		// SC-105: switch active player
 		gameState.humanTurn = !gameState.humanTurn;
 
+		if (gameState.humanAvatar != null) {
+			gameState.humanAvatar.hasMoved = false;
+			gameState.humanAvatar.hasAttacked = false;
+		}
+		for (structures.basic.Unit u : gameState.humanUnits) {
+			u.hasMoved = false;
+			u.hasAttacked = false;
+		}
+
+		if (gameState.aiAvatar != null) {
+			gameState.aiAvatar.hasMoved = false;
+			gameState.aiAvatar.hasAttacked = false;
+		}
+		for (structures.basic.Unit u : gameState.aiUnits) {
+			u.hasMoved = false;
+			u.hasAttacked = false;
+		}
+
 		// advance turn counter only when human finishes
 		if (gameState.humanTurn) {
 			gameState.turnNumber++;

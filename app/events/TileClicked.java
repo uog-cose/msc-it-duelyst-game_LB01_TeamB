@@ -7,6 +7,7 @@ import commands.BasicCommands;
 import structures.GameState;
 import structures.basic.Tile;
 import structures.basic.Unit;
+import structures.basic.UnitAnimationType;
 import utils.BasicObjectBuilders;
 
 /**
@@ -42,20 +43,16 @@ public class TileClicked implements EventProcessor {
             return;
         }
 
-        if (gameState.selectedCard == null || gameState.selectedHandPosition < 1) {
-            System.out.println("[SC-201] tileclick ignored: no selected card");
+        if (!gameState.isWithinBoard(tilex, tiley)) {
+            System.out.println("[SC-205] invalid target: outside board");
             return;
         }
+
+        if (gameState.selectedCard != null && gameState.selectedHandPosition >= 1) {
 
         System.out.println("[SC-201] selected card on tileclick="
                 + gameState.getCardName(gameState.selectedCard)
                 + " selectedHandPosition=" + gameState.selectedHandPosition);
-
-        if (!gameState.isWithinBoard(tilex, tiley)) {
-            System.out.println("[SC-205] invalid target: outside board");
-            BasicCommands.addPlayer1Notification(out, "Invalid target", 2);
-            return;
-        }
 
         boolean highlighted = gameState.isHighlightedSummonTileByUiCoords(rawTilex, rawTiley);
         boolean free = gameState.isTileFree(tilex, tiley);
@@ -122,5 +119,99 @@ public class TileClicked implements EventProcessor {
         System.out.println("[SC-201] summon success at (" + tilex + "," + tiley
                 + ") remainingMana=" + gameState.humanPlayer.getMana()
                 + " handSize=" + gameState.humanPlayer.hand.size());
+    
+    }
+    else {
+            Tile clickedTile = gameState.getTile(tilex, tiley);
+            Unit clickedUnit = clickedTile.getUnit();
+
+            if (clickedUnit != null && gameState.isFriendlyUnit(clickedUnit)) {
+                gameState.selectedUnit = clickedUnit;
+                System.out.println("[SC-303] Selected friendly unit at " + tilex + "," + tiley);
+                return;
+            }
+            
+            if (clickedUnit != null && gameState.isEnemyUnit(clickedUnit) && gameState.selectedUnit != null) {
+                Unit attacker = gameState.selectedUnit;
+                Unit defender = clickedUnit;
+
+                if (attacker.hasAttacked) {
+                    BasicCommands.addPlayer1Notification(out, "Unit has already attacked!", 2);
+                    return;
+                }
+
+                Tile attackerTile = gameState.findTileContainingUnit(attacker);
+                int dx = Math.abs(attackerTile.getTilex() - tilex);
+                int dy = Math.abs(attackerTile.getTiley() - tiley);
+
+                if (dx <= 1 && dy <= 1) {
+                    System.out.println("[SC-303] Attacking enemy!");
+
+                    BasicCommands.playUnitAnimation(out, attacker, UnitAnimationType.attack);
+                    BasicCommands.playUnitAnimation(out, defender, UnitAnimationType.hit);
+
+                    defender.health -= attacker.attack;
+                    BasicCommands.setUnitHealth(out, defender, defender.health);
+                    
+                    if (defender == gameState.aiAvatar) {
+                        gameState.aiPlayer.setHealth(defender.health);
+                        gameState.syncPlayerStatsUI(out);
+                    }
+
+                    attacker.hasAttacked = true;
+                    attacker.hasMoved = true; 
+
+                    gameState.clearUnitSelection(out);
+                    gameState.actionSeq++;
+                } else {
+                    BasicCommands.addPlayer1Notification(out, "Target is out of range!", 2);
+                }
+                return;
+            }
+
+            if (clickedUnit == null && gameState.selectedUnit != null) {
+                Unit movingUnit = gameState.selectedUnit;
+
+                if (movingUnit.hasMoved || movingUnit.hasAttacked) {
+                    BasicCommands.addPlayer1Notification(out, "Unit cannot move!", 2);
+                    return;
+                }
+
+                Tile startTile = gameState.findTileContainingUnit(movingUnit);
+                int startX = startTile.getTilex();
+                int startY = startTile.getTiley();
+
+                boolean isValidMove = false;
+                int[][] offsets = {
+                        { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }, 
+                        { 2, 0 }, { -2, 0 }, { 0, 2 }, { 0, -2 }, 
+                        { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 } 
+                };
+                
+                for (int[] offset : offsets) {
+                    if (startX + offset[0] == tilex && startY + offset[1] == tiley) {
+                        isValidMove = true;
+                        break;
+                    }
+                }
+
+                if (isValidMove) {
+                    System.out.println("[SC-301] Moving unit to " + tilex + "," + tiley);
+
+                    BasicCommands.moveUnitToTile(out, movingUnit, clickedTile);
+
+                    startTile.setUnit(null);
+                    clickedTile.setUnit(movingUnit);
+                    movingUnit.setPositionByTile(clickedTile);
+
+                    movingUnit.hasMoved = true;
+
+                    gameState.clearUnitSelection(out);
+                    gameState.actionSeq++;
+                } else {
+                    BasicCommands.addPlayer1Notification(out, "Invalid move target!", 2);
+                }
+            }
+        }
     }
 }

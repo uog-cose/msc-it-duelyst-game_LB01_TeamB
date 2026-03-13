@@ -44,9 +44,26 @@ public class GameState {
     // Card-play state used for SC-201 / SC-205
     public Card selectedCard = null;
     public int selectedHandPosition = -1;
-    public boolean[][] highlightedSummonTiles = new boolean[9][5];
     public boolean[][] highlightedSummonTilesByUiCoords = new boolean[10][6];
     public int nextUnitId = 1000;
+
+    // SC-302: Currently selected unit for movement (null if none selected)
+    public Unit selectedUnit = null;
+
+ 
+    // Highlight tracking for TWO separate lists, separate rules
+  
+    // SC-201 summon: tiles adjacent (8-way) to any friendly unit/avatar
+    // Cleared when card is unselected or summon completes.
+    public List<Tile> highlightedSummonTiles = new ArrayList<>();
+ 
+    // SC-302 movement: 2-step cardinal + 1-step diagonal from selected unit
+    // Cleared when unit is deselected or move completes.
+    public List<Tile> highlightedMoveTiles = new ArrayList<>();
+ 
+    // Fast O(1) boolean grid for summon tile lookup during TileClicked validation
+    public boolean[][] summonTileGrid = new boolean[9][5];
+    public boolean[][] summonTileGridByUiCoords = new boolean[10][6];
 
     // 9x5 grid for the game board (SC-102)
     public Tile[][] board = new Tile[9][5];
@@ -54,8 +71,14 @@ public class GameState {
     // initialize board array only (tiles will be created in Initialize.java)
     public void initBoardArray() {
         board = new Tile[9][5];
-        highlightedSummonTiles = new boolean[9][5];
-        highlightedSummonTilesByUiCoords = new boolean[10][6];
+        summonTileGrid = new boolean[9][5];
+        summonTileGridByUiCoords = new boolean[10][6];
+        highlightedSummonTiles.clear();
+        highlightedMoveTiles.clear();
+        selectedUnit = null;
+        selectedCard = null;
+        selectedHandPosition = -1;
+
     }
 
     // Check if the given coordinates are inside the board limits
@@ -79,29 +102,157 @@ public class GameState {
         return board[x][y];
     }
 
-    // SC-203: Highlight valid movement tiles for a unit
+    public Tile findTileContainingUnit(Unit unit) {
+        if (unit == null) return null;
+        for (int x = 0; x < 9; x++)
+            for (int y = 0; y < 5; y++)
+                if (board[x][y] != null && board[x][y].getUnit() == unit)
+                    return board[x][y];
+        return null;
+    }
+
+    // SC-302: Movement highlighting
+    // Rules: up to 2 tiles in cardinal directions, 1 tile diagonal
     public void highlightValidMoveTiles(ActorRef out, int startX, int startY) {
-        if (board == null)
-            return;
-
-        // Movement rules:
-        // - 2 tiles cardinal directions
-        // - 1 tile diagonally
+        // Always clear previous move highlights before showing new ones
+        clearMoveTileHighlights(out);
+ 
+        if (board == null) return;
+ 
         int[][] offsets = {
-                { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 },
-                { 2, 0 }, { -2, 0 }, { 0, 2 }, { 0, -2 },
-                { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 }
+            // cardinal 1 step
+            {  1,  0 }, { -1,  0 }, {  0,  1 }, {  0, -1 },
+            // cardinal 2 steps
+            {  2,  0 }, { -2,  0 }, {  0,  2 }, {  0, -2 },
+            // diagonal 1 step only
+            {  1,  1 }, {  1, -1 }, { -1,  1 }, { -1, -1 }
         };
-
+ 
         for (int[] offset : offsets) {
             int nx = startX + offset[0];
             int ny = startY + offset[1];
-
             if (isWithinBoard(nx, ny) && isTileFree(nx, ny)) {
-                BasicCommands.drawTile(out, board[nx][ny], 1);
+                Tile t = board[nx][ny];
+                BasicCommands.drawTile(out, t, 1);
+                highlightedMoveTiles.add(t);
             }
         }
+        System.out.println("[SC-302] Move tiles highlighted: " + highlightedMoveTiles.size()
+                + " from (" + startX + "," + startY + ")");
     }
+
+    // Clear only movement range highlights 
+    public void clearMoveTileHighlights(ActorRef out) {
+        for (Tile t : highlightedMoveTiles) {
+            BasicCommands.drawTile(out, t, 0);
+            try { Thread.sleep(5); } catch (InterruptedException e) { e.printStackTrace(); }
+        }
+        highlightedMoveTiles.clear();
+    }
+
+    // SC-201: Summon tile highlighting
+    // Rules: 8-way adjacent to ALL friendly units + avatar, free tiles only
+ 
+    public int highlightValidSummonTiles(ActorRef out) {
+        // Clear previous summon highlights before showing new ones
+        clearSummonTileHighlights(out);
+ 
+        int count = 0;
+        count += highlightAdjacentFreeTilesAroundUnit(out, humanAvatar);
+        for (Unit unit : humanUnits) {
+            count += highlightAdjacentFreeTilesAroundUnit(out, unit);
+        }
+        System.out.println("SC-201 Summon tiles highlighted: " + count);
+        return count;
+    }
+
+    private int highlightAdjacentFreeTilesAroundUnit(ActorRef out, Unit unit) {
+        if (unit == null) return 0;
+ 
+        // Find unit position on board
+        int originX = -1, originY = -1;
+        outer:
+        for (int x = 0; x < 9; x++) {
+            for (int y = 0; y < 5; y++) {
+                if (board[x][y] != null && board[x][y].getUnit() == unit) {
+                    originX = x;
+                    originY = y;
+                    break outer;
+                }
+            }
+        }
+        if (originX == -1) return 0;
+ 
+        int count = 0;
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                if (dx == 0 && dy == 0) continue;
+                int nx = originX + dx;
+                int ny = originY + dy;
+ 
+                if (!isWithinBoard(nx, ny)) continue;
+                if (summonTileGrid[nx][ny]) continue; // already highlighted, skip duplicate
+                if (!isTileFree(nx, ny)) continue;
+ 
+                Tile t = board[nx][ny];
+                BasicCommands.drawTile(out, t, 1);
+                highlightedSummonTiles.add(t);
+                summonTileGrid[nx][ny] = true;
+ 
+                int uiX = t.getTilex();
+                int uiY = t.getTiley();
+                if (uiX >= 0 && uiX < summonTileGridByUiCoords.length
+                        && uiY >= 0 && uiY < summonTileGridByUiCoords[0].length) {
+                    summonTileGridByUiCoords[uiX][uiY] = true;
+                }
+                System.out.println("[SC-201] summon highlight board=("
+                        + nx + "," + ny + ") ui=(" + uiX + "," + uiY + ")");
+                count++;
+            }
+        }
+        return count;
+    }
+
+    //Clear only summon highlights 
+     public void clearSummonTileHighlights(ActorRef out) {
+        for (Tile t : highlightedSummonTiles) {
+            BasicCommands.drawTile(out, t, 0);
+            try { Thread.sleep(5); } catch (InterruptedException e) { e.printStackTrace(); }
+        }
+        highlightedSummonTiles.clear();
+        summonTileGrid = new boolean[9][5];
+        summonTileGridByUiCoords = new boolean[10][6];
+    }
+ 
+    // Combined clear to use when switching contexts entirely
+    // e.g. end turn, game reset
+ 
+    // Clears BOTH move and summon highlights + resets unit/card selection
+    public void clearAllHighlights(ActorRef out) {
+        clearMoveTileHighlights(out);
+        clearSummonTileHighlights(out);
+    }
+
+    public boolean isHighlightedSummonTileByUiCoords(int rawTilex, int rawTiley) {
+        return rawTilex >= 0
+                && rawTilex < summonTileGridByUiCoords.length
+                && rawTiley >= 0
+                && rawTiley < summonTileGridByUiCoords[0].length
+                && summonTileGridByUiCoords[rawTilex][rawTiley];
+    }
+
+    // Card selection state
+ 
+    public void clearCardSelection(ActorRef out) {
+        if (selectedCard != null && selectedHandPosition >= 1) {
+            BasicCommands.drawCard(out, selectedCard, selectedHandPosition, 0);
+        }
+        clearSummonTileHighlights(out);
+        selectedCard = null;
+        selectedHandPosition = -1;
+    }
+
+   
 
     // SC-402: Sync UI stats for both players
     public void syncPlayerStatsUI(ActorRef out) {
@@ -109,129 +260,6 @@ public class GameState {
         BasicCommands.setPlayer1Mana(out, this.humanPlayer);
         BasicCommands.setPlayer2Health(out, this.aiPlayer);
         BasicCommands.setPlayer2Mana(out, this.aiPlayer);
-    }
-
-    public Tile findTileContainingUnit(Unit unit) {
-        if (unit == null) {
-            return null;
-        }
-        for (int x = 0; x < 9; x++) {
-            for (int y = 0; y < 5; y++) {
-                if (board[x][y] != null && board[x][y].getUnit() == unit) {
-                    return board[x][y];
-                }
-            }
-        }
-        return null;
-    }
-
-    public void clearHighlightedTiles(ActorRef out) {
-        for (int x = 0; x < 9; x++) {
-            for (int y = 0; y < 5; y++) {
-                if (highlightedSummonTiles[x][y] && board[x][y] != null) {
-                    BasicCommands.drawTile(out, board[x][y], 0);
-                }
-                highlightedSummonTiles[x][y] = false;
-            }
-        }
-        for (int x = 0; x < 10; x++) {
-            for (int y = 0; y < 6; y++) {
-                highlightedSummonTilesByUiCoords[x][y] = false;
-            }
-        }
-    }
-
-    public void clearCardSelection(ActorRef out) {
-        if (selectedCard != null && selectedHandPosition >= 1) {
-            BasicCommands.drawCard(out, selectedCard, selectedHandPosition, 0);
-        }
-        clearHighlightedTiles(out);
-        selectedCard = null;
-        selectedHandPosition = -1;
-    }
-
-    public int highlightValidSummonTiles(ActorRef out) {
-        clearHighlightedTiles(out);
-
-        int count = 0;
-        count += highlightAdjacentFreeTilesAroundUnit(out, humanAvatar);
-        for (Unit unit : humanUnits) {
-            count += highlightAdjacentFreeTilesAroundUnit(out, unit);
-        }
-        return count;
-    }
-
-
-    private int highlightAdjacentFreeTilesAroundUnit(ActorRef out, Unit unit) {
-        Tile origin = findTileContainingUnit(unit);
-        if (origin == null) {
-            return 0;
-        }
-
-        int originX = -1;
-        int originY = -1;
-
-        for (int x = 0; x < 9; x++) {
-            for (int y = 0; y < 5; y++) {
-                if (board[x][y] == origin) {
-                    originX = x;
-                    originY = y;
-                    break;
-                }
-            }
-            if (originX != -1) {
-                break;
-            }
-        }
-
-        if (originX == -1 || originY == -1) {
-            return 0;
-        }
-
-        int count = 0;
-
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dy = -1; dy <= 1; dy++) {
-                if (dx == 0 && dy == 0) {
-                    continue;
-                }
-
-                int nx = originX + dx;
-                int ny = originY + dy;
-
-                if (isTileFree(nx, ny) && !highlightedSummonTiles[nx][ny]) {
-                    highlightedSummonTiles[nx][ny] = true;
-
-                    Tile highlightedTile = board[nx][ny];
-                    BasicCommands.drawTile(out, highlightedTile, 1);
-
-                    int uiX = highlightedTile.getTilex();
-                    int uiY = highlightedTile.getTiley();
-
-                    if (uiX >= 0 && uiX < highlightedSummonTilesByUiCoords.length
-                            && uiY >= 0 && uiY < highlightedSummonTilesByUiCoords[0].length) {
-                        highlightedSummonTilesByUiCoords[uiX][uiY] = true;
-                    }
-
-                    System.out.println("[SC-201] highlight board=(" + nx + "," + ny + ") ui=(" + uiX + "," + uiY + ")");
-                    count++;
-                }
-            }
-        }
-
-        return count;
-    }
-
-    public boolean isHighlightedSummonTile(int x, int y) {
-        return isWithinBoard(x, y) && highlightedSummonTiles[x][y];
-    }
-
-    public boolean isHighlightedSummonTileByUiCoords(int rawTilex, int rawTiley) {
-        return rawTilex >= 0
-                && rawTilex < highlightedSummonTilesByUiCoords.length
-                && rawTiley >= 0
-                && rawTiley < highlightedSummonTilesByUiCoords[0].length
-                && highlightedSummonTilesByUiCoords[rawTilex][rawTiley];
     }
 
     public void refreshHumanHandUI(ActorRef out) {
@@ -270,11 +298,8 @@ public class GameState {
         try {
             Field field = card.getClass().getField("manacost");
             Object value = field.get(card);
-            if (value instanceof Number) {
-                return ((Number) value).intValue();
-            }
-        } catch (Exception ignored) {
-        }
+            if (value instanceof Number)  return ((Number) value).intValue();
+        } catch (Exception ignored) {}
 
         return Integer.MAX_VALUE;
     }

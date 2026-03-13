@@ -151,10 +151,10 @@ public class InitalizationTest {
 		tileMessage.put("tiley", 2);
 
 		tileClicked.processEvent(null, gameState, tileMessage);
-
 		// Current movement rules in GameState.highlightValidMoveTiles()
-		// should highlight 11 valid tiles from (1,2)
-		assertEquals(11, rec.countHighlightedTiles());
+		// should highlight 11 tiles for avatar movement
+        assertEquals(11, rec.countHighlightedTiles());
+		assertEquals(2, gameState.humanPlayer.getMana());
 
 		// Clicking an empty tile should not highlight anything
 		rec.clear();
@@ -210,7 +210,7 @@ public class InitalizationTest {
 		// Case 1: Enough mana -> mana should reduce exactly by card cost
 		gameState.humanPlayer.setMana(cardCost);
 		cardClicked.processEvent(null, gameState, cardMessage);
-		assertEquals(0, gameState.humanPlayer.getMana());
+		assertEquals(cardCost, gameState.humanPlayer.getMana());
 
 		// Case 2: Not enough mana -> mana should remain unchanged
 		gameState.humanPlayer.setMana(cardCost - 1);

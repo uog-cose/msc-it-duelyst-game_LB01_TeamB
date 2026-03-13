@@ -151,9 +151,9 @@ public class InitalizationTest {
 		tileMessage.put("tiley", 2);
 
 		tileClicked.processEvent(null, gameState, tileMessage);
-
 		// Current movement rules in GameState.highlightValidMoveTiles()
-		// should highlight 11 valid tiles from (1,2)
+		// should highlight 11 tiles for avatar movement
+        assertEquals(11, rec.countHighlightedTiles());
 		assertEquals(2, gameState.humanPlayer.getMana());
 
 		// Clicking an empty tile should not highlight anything

@@ -60,12 +60,16 @@ public class CardClicked implements EventProcessor {
           gameState.selectedUnit = null;
 
         if (gameState.isSpellCard(clickedCard)) {
+            if (out != null) {
             BasicCommands.addPlayer1Notification(out, "Spell cards are not part of SC-201", 2);
+            }
             return;
         }
 
         if (manaCost > gameState.humanPlayer.getMana()) {
+            if (out != null) {
             BasicCommands.addPlayer1Notification(out, "Not enough mana", 2);
+            }
             return;
         }
 
@@ -78,7 +82,9 @@ public class CardClicked implements EventProcessor {
         System.out.println("[SC-201] validTargetCount=" + validTargetCount);
 
         if (validTargetCount == 0) {
+            if (out != null) {
             BasicCommands.addPlayer1Notification(out, "No valid summon tiles", 2);
+            }
             gameState.clearCardSelection(out);
         }
     }

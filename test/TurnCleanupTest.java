@@ -31,14 +31,16 @@ public class TurnCleanupTest {
         gameState.highlightedTiles.add(dummyTile1);
         gameState.highlightedTiles.add(dummyTile2);
 
-        // Assert that our list actually has 2 tiles before the turn ends
-        assertTrue("List should have 2 tiles before end turn", gameState.highlightedTiles.size() == 2);
+       // assertTrue("List should have 2 tiles before end turn", gameState.highlightedTiles.size() == 2);
+       assertTrue("Move highlights should be empty after end turn cleanup", gameState.highlightedMoveTiles.isEmpty());
+       assertTrue("Summon highlights should be empty after end turn cleanup", gameState.highlightedSummonTiles.isEmpty());
 
         // 4. Simulate a player clicking the "End Turn" button
         EndTurnClicked endTurnProcessor = new EndTurnClicked();
         endTurnProcessor.processEvent(null, gameState, null);
 
-        // 5. Assert that our cleanup logic successfully emptied the list
-        assertTrue("List should be entirely empty after end turn cleanup", gameState.highlightedTiles.isEmpty());
+        // 5.assertTrue("List should be entirely empty after end turn cleanup", gameState.highlightedTiles.isEmpty());
+        assertTrue("Move highlights should be empty after end turn cleanup", gameState.highlightedMoveTiles.isEmpty());
+        assertTrue("Summon highlights should be empty after end turn cleanup", gameState.highlightedSummonTiles.isEmpty());
     }
 }

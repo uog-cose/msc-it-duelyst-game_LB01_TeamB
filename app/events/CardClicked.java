@@ -46,12 +46,18 @@ public class CardClicked implements EventProcessor {
                 + " manaCost=" + manaCost
                 + " currentMana=" + gameState.humanPlayer.getMana());
 
+        // Clicking the already selected card to unselect it
         if (gameState.selectedHandPosition == handPosition && gameState.selectedCard == clickedCard) {
             System.out.println("[SC-201] duplicate click on already selected card ignored");
             return;
         }
 
+         // Switching to a new card to clear everything first
         gameState.clearCardSelection(out);
+
+          // Also clear any movement highlights (unit and card selection are mutually exclusive)
+          gameState.clearMoveTileHighlights(out);
+          gameState.selectedUnit = null;
 
         if (gameState.isSpellCard(clickedCard)) {
             BasicCommands.addPlayer1Notification(out, "Spell cards are not part of SC-201", 2);
@@ -63,6 +69,7 @@ public class CardClicked implements EventProcessor {
             return;
         }
 
+        // Select this card and show summon highlights
         gameState.selectedCard = clickedCard;
         gameState.selectedHandPosition = handPosition;
         BasicCommands.drawCard(out, clickedCard, handPosition, 1);

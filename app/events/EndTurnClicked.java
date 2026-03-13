@@ -24,17 +24,10 @@ public class EndTurnClicked implements EventProcessor{
 
 		System.out.println("END TURN CLICKED: humanTurn was " + gameState.humanTurn + " turn=" + gameState.turnNumber);
 
-		// ==========================================
-		// [SC-505] Turn End Cleanup / State Reset
-		// ==========================================
-		// Optimized: Only clear tiles that are actually highlighted to prevent WebSocket buffer overflow.
-		if (gameState.highlightedTiles != null && !gameState.highlightedTiles.isEmpty()) {
-			for (Tile tile : gameState.highlightedTiles) {
-				BasicCommands.drawTile(out, tile, 0);
-			}
-			gameState.highlightedTiles.clear();
-		}
-		// ==========================================
+			// SC-505 Turn End Cleanup to clear both move and summon highlights + reset selection
+			gameState.clearAllHighlights(out);
+			gameState.selectedUnit = null;
+			gameState.clearCardSelection(out);
 
 		// SC-107: Draw & Burn logic before switching turns
 		if (gameState.humanTurn) {

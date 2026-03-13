@@ -64,6 +64,11 @@ public class TileClicked implements EventProcessor {
 
             System.out.println("[SC-202] spell card clicked target tile");
 
+            if (!gameState.isHighlightedSummonTileByUiCoords(rawTilex, rawTiley)) {
+                BasicCommands.addPlayer1Notification(out, "Invalid spell target", 2);
+                return;
+            }
+
             Tile targetTile = gameState.getTile(tilex, tiley);
 
             if (targetTile == null) {
@@ -87,6 +92,10 @@ public class TileClicked implements EventProcessor {
                 gameState.aiUnits.remove(targetUnit);
 
                 BasicCommands.deleteUnit(out, targetUnit);
+            } else {
+                BasicCommands.addPlayer1Notification(out, "Spell not implemented yet", 2);
+                gameState.clearCardSelection(out);
+                return;
             }
 
             int manaCost = gameState.getCardManaCost(gameState.selectedCard);

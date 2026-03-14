@@ -36,8 +36,8 @@ public class GameState {
     public Unit humanAvatar = null;
     public Unit aiAvatar = null;
     // Runtime HP tracking for non-avatar units (avatars use Player health)
-public Map<Unit, Integer> unitHealth = new HashMap<>();
-
+    public Map<Unit, Integer> unitHealth = new HashMap<>();
+    public Map<Unit, Integer> unitAttack = new HashMap<>();
     // [SC-505] List to keep track of currently highlighted tiles on the board
     public List<Tile> highlightedTiles = new ArrayList<>();
 
@@ -86,6 +86,7 @@ public Map<Unit, Integer> unitHealth = new HashMap<>();
         highlightedMoveTiles.clear();
         highlightedSpellTiles.clear();
         unitHealth.clear();
+        unitAttack.clear();
 
         selectedUnit = null;
         selectedCard = null;
@@ -123,6 +124,10 @@ public Map<Unit, Integer> unitHealth = new HashMap<>();
         return null;
     }
 
+    public boolean isEnemyUnit(Unit unit) {
+        return unit == aiAvatar || aiUnits.contains(unit);
+    }
+
     // SC-302: Movement highlighting
     // Rules: up to 2 tiles in cardinal directions, 1 tile diagonal
     public void highlightValidMoveTiles(ActorRef out, int startX, int startY) {
@@ -145,7 +150,9 @@ public Map<Unit, Integer> unitHealth = new HashMap<>();
             int ny = startY + offset[1];
             if (isWithinBoard(nx, ny) && isTileFree(nx, ny)) {
                 Tile t = board[nx][ny];
-                BasicCommands.drawTile(out, t, 1);
+                
+                    BasicCommands.drawTile(out, t, 1);
+            
                 highlightedMoveTiles.add(t);
             }
         }
@@ -156,10 +163,21 @@ public Map<Unit, Integer> unitHealth = new HashMap<>();
     // Clear only movement range highlights 
     public void clearMoveTileHighlights(ActorRef out) {
         for (Tile t : highlightedMoveTiles) {
-            BasicCommands.drawTile(out, t, 0);
+            if (out != null) {
+                BasicCommands.drawTile(out, t, 0);
+            }
             try { Thread.sleep(5); } catch (InterruptedException e) { e.printStackTrace(); }
         }
         highlightedMoveTiles.clear();
+    }
+
+    public boolean isHighlightedMoveTile(int x, int y) {
+        if (!isWithinBoard(x, y)) return false;
+    
+        Tile t = board[x][y];
+        if (t == null) return false;
+    
+        return highlightedMoveTiles.contains(t);
     }
 
     // SC-201: Summon tile highlighting
@@ -228,7 +246,9 @@ public Map<Unit, Integer> unitHealth = new HashMap<>();
     //Clear only summon highlights 
      public void clearSummonTileHighlights(ActorRef out) {
         for (Tile t : highlightedSummonTiles) {
-            BasicCommands.drawTile(out, t, 0);
+            if (out != null) {
+                BasicCommands.drawTile(out, t, 0);
+            }
             try { Thread.sleep(5); } catch (InterruptedException e) { e.printStackTrace(); }
         }
         highlightedSummonTiles.clear();
@@ -313,6 +333,46 @@ public Map<Unit, Integer> unitHealth = new HashMap<>();
         Integer hp = unitHealth.get(unit);
         return hp == null ? 0 : hp;
     }
+
+    public void setUnitAttack(Unit unit, int attack) {
+        if (unit != null) {
+            unitAttack.put(unit, attack);
+        }
+    }
+
+    public int getUnitAttack(Unit unit) {
+        if (unit == null) return 0;
+    
+        if (unit == humanAvatar) return 2;
+        if (unit == aiAvatar) return 2;
+    
+        Integer atk = unitAttack.get(unit);
+        return atk == null ? 0 : atk;
+    }
+
+    public int getCardAttack(Card card) {
+        if (card == null) return 0;
+    
+        try {
+            Method getter = card.getClass().getMethod("getBigCard");
+            Object bigCard = getter.invoke(card);
+            if (bigCard != null) {
+                try {
+                    Method attackGetter = bigCard.getClass().getMethod("getAttack");
+                    Object value = attackGetter.invoke(bigCard);
+                    if (value instanceof Number) return ((Number) value).intValue();
+                } catch (Exception ignored) {}
+    
+                try {
+                    Field attackField = bigCard.getClass().getField("attack");
+                    Object value = attackField.get(bigCard);
+                    if (value instanceof Number) return ((Number) value).intValue();
+                } catch (Exception ignored) {}
+            }
+        } catch (Exception ignored) {}
+    
+        return 0;
+    }
     
     public void setHealthForTarget(Unit unit, int hp) {
         if (unit == null) return;
@@ -349,6 +409,8 @@ public Map<Unit, Integer> unitHealth = new HashMap<>();
         humanUnits.remove(unit);
         aiUnits.remove(unit);
         unitHealth.remove(unit);
+        unitAttack.remove(unit);
+
     }
     
     public int getCardHealth(Card card) {
@@ -423,10 +485,12 @@ public Map<Unit, Integer> unitHealth = new HashMap<>();
 
     // SC-402: Sync UI stats for both players
     public void syncPlayerStatsUI(ActorRef out) {
+        if (out != null) {
         BasicCommands.setPlayer1Health(out, this.humanPlayer);
         BasicCommands.setPlayer1Mana(out, this.humanPlayer);
         BasicCommands.setPlayer2Health(out, this.aiPlayer);
         BasicCommands.setPlayer2Mana(out, this.aiPlayer);
+        }
     }
 
     public void refreshHumanHandUI(ActorRef out) {

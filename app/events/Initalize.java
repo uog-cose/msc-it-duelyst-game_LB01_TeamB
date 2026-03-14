@@ -86,11 +86,26 @@ public class Initalize implements EventProcessor {
 		gameState.humanPlayer.setMana(gameState.turnNumber + 1); // 2
 		gameState.aiPlayer.setMana(0);
 
+
+		//to update health and attack stats for avatars and units
 		if (out != null) {
 			BasicCommands.setPlayer1Health(out, gameState.humanPlayer);
 			BasicCommands.setPlayer2Health(out, gameState.aiPlayer);
+		
 			BasicCommands.drawUnit(out, humanAvatar, humanTile);
+			try { Thread.sleep(50); } catch (InterruptedException e) { e.printStackTrace(); }//to show Avatar unit health
+		
 			BasicCommands.drawUnit(out, aiAvatar, aiTile);
+			try { Thread.sleep(50); } catch (InterruptedException e) { e.printStackTrace(); }
+		
+			BasicCommands.setUnitHealth(out, humanAvatar, gameState.humanPlayer.getHealth());
+			BasicCommands.setUnitAttack(out, humanAvatar, 2);
+			try { Thread.sleep(50); } catch (InterruptedException e) { e.printStackTrace(); }
+		
+			BasicCommands.setUnitHealth(out, aiAvatar, gameState.aiPlayer.getHealth());
+			BasicCommands.setUnitAttack(out, aiAvatar, 2);
+			try { Thread.sleep(50); } catch (InterruptedException e) { e.printStackTrace(); }
+		
 			BasicCommands.setPlayer1Mana(out, gameState.humanPlayer);
 			BasicCommands.setPlayer2Mana(out, gameState.aiPlayer);
 		}

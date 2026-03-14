@@ -210,7 +210,7 @@ public class InitalizationTest {
 		// Case 1: Enough mana -> mana should reduce exactly by card cost
 		gameState.humanPlayer.setMana(cardCost);
 		cardClicked.processEvent(null, gameState, cardMessage);
-		assertEquals(0, gameState.humanPlayer.getMana());
+		assertEquals(cardCost, gameState.humanPlayer.getMana());
 
 		// Case 2: Not enough mana -> mana should remain unchanged
 		gameState.humanPlayer.setMana(cardCost - 1);

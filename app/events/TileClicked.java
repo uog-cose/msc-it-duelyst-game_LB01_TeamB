@@ -102,7 +102,11 @@ public class TileClicked implements EventProcessor {
                         gameState.clearCardSelection(out);
                         return;
                     }
-            
+                    //sending updated health to UI after applying spell effects,
+                    if (out != null && targetUnit != gameState.humanAvatar && targetUnit != gameState.aiAvatar) {
+                        BasicCommands.setUnitHealth(out, targetUnit, gameState.getUnitHealth(targetUnit));
+                    }
+
                     gameState.humanPlayer.setMana(gameState.humanPlayer.getMana() - manaCost);
                     if (out != null) {
                         BasicCommands.setPlayer1Mana(out, gameState.humanPlayer);
@@ -174,8 +178,13 @@ public class TileClicked implements EventProcessor {
             System.out.println("summoned unit hp and attack" + summonedHp + summonedAtk);
  
             gameState.humanPlayer.setMana(gameState.humanPlayer.getMana() - manaCost);
-            BasicCommands.setPlayer1Mana(out, gameState.humanPlayer);
-            BasicCommands.drawUnit(out, summonedUnit, targetTile);
+            if (out != null) {
+                BasicCommands.setPlayer1Mana(out, gameState.humanPlayer);
+                BasicCommands.drawUnit(out, summonedUnit, targetTile);
+                try { Thread.sleep(50); } catch (InterruptedException e) { e.printStackTrace(); } //to show summon unit health
+                BasicCommands.setUnitHealth(out, summonedUnit, summonedHp);
+                BasicCommands.setUnitAttack(out, summonedUnit, summonedAtk);
+            }
  
             gameState.humanPlayer.hand.remove(gameState.selectedHandPosition - 1);
             gameState.refreshHumanHandUI(out);

@@ -485,10 +485,12 @@ public class GameState {
 
     // SC-402: Sync UI stats for both players
     public void syncPlayerStatsUI(ActorRef out) {
+        if (out != null) {
         BasicCommands.setPlayer1Health(out, this.humanPlayer);
         BasicCommands.setPlayer1Mana(out, this.humanPlayer);
         BasicCommands.setPlayer2Health(out, this.aiPlayer);
         BasicCommands.setPlayer2Mana(out, this.aiPlayer);
+        }
     }
 
     public void refreshHumanHandUI(ActorRef out) {

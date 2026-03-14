@@ -49,6 +49,80 @@ public class TileClicked implements EventProcessor {
                 BasicCommands.addPlayer1Notification(out, "Invalid target", 2);
                 return;
             }
+
+            //spell card handling SC-205 ro check if the selected card is a spell and handle accordingly,
+            //placing this code before summon unit part as the highlighting logic for spell cards is different 
+            //and I don't want to accidentally treat a spell card as a summon card. 
+                if (gameState.isSpellCard(gameState.selectedCard)) {
+            
+                    boolean highlightedSpell = gameState.isHighlightedSpellTileByUiCoords(tilex, tiley);
+                    if (!highlightedSpell) {
+                        if (out != null) {
+                            BasicCommands.addPlayer1Notification(out, "Invalid target", 2);
+                        }
+                        return;
+                    }
+            
+                    Tile targetTile = gameState.getTile(tilex, tiley);
+                    if (targetTile == null || targetTile.getUnit() == null) {
+                        if (out != null) {
+                            BasicCommands.addPlayer1Notification(out, "Invalid target", 2);
+                        }
+                        return;
+                    }
+            
+                    Unit targetUnit = targetTile.getUnit();
+                    String spellName = gameState.getCardName(gameState.selectedCard);
+                    int manaCost = gameState.getCardManaCost(gameState.selectedCard);
+            
+                    if (manaCost > gameState.humanPlayer.getMana()) {
+                        if (out != null) {
+                            BasicCommands.addPlayer1Notification(out, "Not enough mana", 2);
+                        }
+                        gameState.clearCardSelection(out);
+                        return;
+                    }
+            
+                    if ("Dark Terminus".equalsIgnoreCase(spellName)) {
+                        gameState.removeUnitFromBoard(targetUnit);
+            
+                    } else if ("True Strike".equalsIgnoreCase(spellName)) {
+                        int newHp = gameState.damageTarget(targetUnit, 2);
+                        if (newHp <= 0) {
+                            gameState.removeUnitFromBoard(targetUnit);
+                        }
+            
+                    } else if ("Sundrop Elixir".equalsIgnoreCase(spellName)) {
+                        gameState.healTarget(targetUnit, 4);
+            
+                    } else {
+                        if (out != null) {
+                            BasicCommands.addPlayer1Notification(out, "Spell not implemented yet", 2);
+                        }
+                        gameState.clearCardSelection(out);
+                        return;
+                    }
+            
+                    gameState.humanPlayer.setMana(gameState.humanPlayer.getMana() - manaCost);
+                    if (out != null) {
+                        BasicCommands.setPlayer1Mana(out, gameState.humanPlayer);
+                    }
+            
+                    // sync avatar/player HP if avatar was target
+                    gameState.syncPlayerStatsUI(out);
+            
+                    gameState.humanPlayer.hand.remove(gameState.selectedHandPosition - 1);
+                    gameState.refreshHumanHandUI(out);
+            
+                    gameState.clearCardSelection(out);
+                    gameState.clearMoveTileHighlights(out);
+                    gameState.selectedUnit = null;
+                    gameState.actionSeq++;
+            
+                    System.out.println("[SPELL] cast success: " + spellName + " at (" + tilex + "," + tiley + ")");
+                    return;
+                }
+
 			boolean highlighted = gameState.isHighlightedSummonTileByUiCoords(tilex, tiley);
             boolean free = gameState.isTileFree(tilex, tiley);
  
@@ -91,6 +165,11 @@ public class TileClicked implements EventProcessor {
 			targetTile.setUnit(summonedUnit);
             summonedUnit.setPositionByTile(targetTile);
             gameState.humanUnits.add(summonedUnit);
+
+            //to handle play spell health
+            int summonedHp = gameState.getCardHealth(gameState.selectedCard);
+            gameState.setUnitHealth(summonedUnit, summonedHp);
+            System.out.println("[SC-201] summoned unit hp=" + summonedHp);
  
             gameState.humanPlayer.setMana(gameState.humanPlayer.getMana() - manaCost);
             BasicCommands.setPlayer1Mana(out, gameState.humanPlayer);

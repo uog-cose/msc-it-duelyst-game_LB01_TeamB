@@ -11,6 +11,8 @@ import structures.basic.Card;
 import structures.basic.Player;
 import structures.basic.Tile;
 import structures.basic.Unit;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * This class can be used to hold information about the on-going game.
@@ -33,6 +35,8 @@ public class GameState {
     // Avatars
     public Unit humanAvatar = null;
     public Unit aiAvatar = null;
+    // Runtime HP tracking for non-avatar units (avatars use Player health)
+public Map<Unit, Integer> unitHealth = new HashMap<>();
 
     // [SC-505] List to keep track of currently highlighted tiles on the board
     public List<Tile> highlightedTiles = new ArrayList<>();
@@ -50,7 +54,6 @@ public class GameState {
     // SC-302: Currently selected unit for movement (null if none selected)
     public Unit selectedUnit = null;
 
- 
     // Highlight tracking for TWO separate lists, separate rules
   
     // SC-201 summon: tiles adjacent (8-way) to any friendly unit/avatar
@@ -60,6 +63,10 @@ public class GameState {
     // SC-302 movement: 2-step cardinal + 1-step diagonal from selected unit
     // Cleared when unit is deselected or move completes.
     public List<Tile> highlightedMoveTiles = new ArrayList<>();
+    
+    // Spell target highlighting: tiles valid for the currently selected spell
+    public List<Tile> highlightedSpellTiles = new ArrayList<>();
+    public boolean[][] spellTileGridByUiCoords = new boolean[10][6];
  
     // Fast O(1) boolean grid for summon tile lookup during TileClicked validation
     public boolean[][] summonTileGrid = new boolean[9][5];
@@ -73,8 +80,13 @@ public class GameState {
         board = new Tile[9][5];
         summonTileGrid = new boolean[9][5];
         summonTileGridByUiCoords = new boolean[10][6];
+        spellTileGridByUiCoords = new boolean[10][6];
+
         highlightedSummonTiles.clear();
         highlightedMoveTiles.clear();
+        highlightedSpellTiles.clear();
+        unitHealth.clear();
+
         selectedUnit = null;
         selectedCard = null;
         selectedHandPosition = -1;
@@ -223,6 +235,157 @@ public class GameState {
         summonTileGrid = new boolean[9][5];
         summonTileGridByUiCoords = new boolean[10][6];
     }
+
+    public int highlightValidSpellTargets(ActorRef out, Card spellCard) {
+        clearSpellTileHighlights(out);
+    
+        if (spellCard == null) return 0;
+    
+        String spellName = getCardName(spellCard);
+        int count = 0;
+    
+        for (int x = 0; x < 9; x++) {
+            for (int y = 0; y < 5; y++) {
+                Tile t = board[x][y];
+                if (t == null || t.getUnit() == null) continue;
+    
+                Unit u = t.getUnit();
+                boolean valid = false;
+    
+                if ("Dark Terminus".equalsIgnoreCase(spellName)
+                        || "True Strike".equalsIgnoreCase(spellName)) {
+                    valid = aiUnits.contains(u) || u == aiAvatar;
+                } else if ("Sundrop Elixir".equalsIgnoreCase(spellName)) {
+                    valid = humanUnits.contains(u) || u == humanAvatar;
+                }
+    
+                if (valid) {
+                    if (out != null) {
+                        BasicCommands.drawTile(out, t, 1);
+                    }
+                    highlightedSpellTiles.add(t);
+    
+                    int uiX = t.getTilex();
+                    int uiY = t.getTiley();
+                    if (uiX >= 0 && uiX < spellTileGridByUiCoords.length
+                            && uiY >= 0 && uiY < spellTileGridByUiCoords[0].length) {
+                        spellTileGridByUiCoords[uiX][uiY] = true;
+                    }
+                    count++;
+                }
+            }
+        }
+    
+        return count;
+    }
+    
+    public void clearSpellTileHighlights(ActorRef out) {
+        for (Tile t : highlightedSpellTiles) {
+            if (out != null) {
+                BasicCommands.drawTile(out, t, 0);
+            }
+            try { Thread.sleep(5); } catch (InterruptedException e) { e.printStackTrace(); }
+        }
+        highlightedSpellTiles.clear();
+        spellTileGridByUiCoords = new boolean[10][6];
+    }
+    
+    public boolean isHighlightedSpellTileByUiCoords(int rawTilex, int rawTiley) {
+        return rawTilex >= 0
+                && rawTilex < spellTileGridByUiCoords.length
+                && rawTiley >= 0
+                && rawTiley < spellTileGridByUiCoords[0].length
+                && spellTileGridByUiCoords[rawTilex][rawTiley];
+    }
+    
+    public void setUnitHealth(Unit unit, int hp) {
+        if (unit != null) {
+            unitHealth.put(unit, hp);
+        }
+    }
+    
+    public int getUnitHealth(Unit unit) {
+        if (unit == null) return 0;
+    
+        if (unit == humanAvatar) return humanPlayer.getHealth();
+        if (unit == aiAvatar) return aiPlayer.getHealth();
+    
+        Integer hp = unitHealth.get(unit);
+        return hp == null ? 0 : hp;
+    }
+    
+    public void setHealthForTarget(Unit unit, int hp) {
+        if (unit == null) return;
+    
+        if (unit == humanAvatar) {
+            humanPlayer.setHealth(hp);
+        } else if (unit == aiAvatar) {
+            aiPlayer.setHealth(hp);
+        } else {
+            unitHealth.put(unit, hp);
+        }
+    }
+    
+    public int damageTarget(Unit unit, int amount) {
+        int newHp = getUnitHealth(unit) - amount;
+        setHealthForTarget(unit, newHp);
+        return newHp;
+    }
+    
+    public int healTarget(Unit unit, int amount) {
+        int newHp = getUnitHealth(unit) + amount;
+        setHealthForTarget(unit, newHp);
+        return newHp;
+    }
+    
+    public void removeUnitFromBoard(Unit unit) {
+        if (unit == null) return;
+    
+        Tile tile = findTileContainingUnit(unit);
+        if (tile != null) {
+            tile.setUnit(null);
+        }
+    
+        humanUnits.remove(unit);
+        aiUnits.remove(unit);
+        unitHealth.remove(unit);
+    }
+    
+    public int getCardHealth(Card card) {
+        if (card == null) return 0;
+    
+        try {
+            Method getter = card.getClass().getMethod("getBigCard");
+            Object bigCard = getter.invoke(card);
+            if (bigCard != null) {
+                try {
+                    Method healthGetter = bigCard.getClass().getMethod("getHealth");
+                    Object value = healthGetter.invoke(bigCard);
+                    if (value instanceof Number) return ((Number) value).intValue();
+                } catch (Exception ignored) {}
+    
+                try {
+                    Field healthField = bigCard.getClass().getField("health");
+                    Object value = healthField.get(bigCard);
+                    if (value instanceof Number) return ((Number) value).intValue();
+                } catch (Exception ignored) {}
+            }
+        } catch (Exception ignored) {}
+    
+        try {
+            Method getter = card.getClass().getMethod("getHealth");
+            Object value = getter.invoke(card);
+            if (value instanceof Number) return ((Number) value).intValue();
+        } catch (Exception ignored) {}
+    
+        try {
+            Field field = card.getClass().getField("health");
+            Object value = field.get(card);
+            if (value instanceof Number) return ((Number) value).intValue();
+        } catch (Exception ignored) {}
+    
+        return 0;
+    }
  
     // Combined clear to use when switching contexts entirely
     // e.g. end turn, game reset
@@ -231,6 +394,7 @@ public class GameState {
     public void clearAllHighlights(ActorRef out) {
         clearMoveTileHighlights(out);
         clearSummonTileHighlights(out);
+        clearSpellTileHighlights(out);
     }
 
     public boolean isHighlightedSummonTileByUiCoords(int rawTilex, int rawTiley) {
@@ -245,9 +409,12 @@ public class GameState {
  
     public void clearCardSelection(ActorRef out) {
         if (selectedCard != null && selectedHandPosition >= 1) {
-            BasicCommands.drawCard(out, selectedCard, selectedHandPosition, 0);
+            if (out != null) {
+                BasicCommands.drawCard(out, selectedCard, selectedHandPosition, 0);
+            }
         }
         clearSummonTileHighlights(out);
+        clearSpellTileHighlights(out);
         selectedCard = null;
         selectedHandPosition = -1;
     }

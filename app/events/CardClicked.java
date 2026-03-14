@@ -59,9 +59,29 @@ public class CardClicked implements EventProcessor {
           gameState.clearMoveTileHighlights(out);
           gameState.selectedUnit = null;
 
-        if (gameState.isSpellCard(clickedCard)) {
+          if (gameState.isSpellCard(clickedCard)) {
+            if (manaCost > gameState.humanPlayer.getMana()) {
+                if (out != null) {
+                    BasicCommands.addPlayer1Notification(out, "Not enough mana", 2);
+                }
+                return;
+            }
+        
+            gameState.selectedCard = clickedCard;
+            gameState.selectedHandPosition = handPosition;
+        
             if (out != null) {
-            BasicCommands.addPlayer1Notification(out, "Spell cards are not part of SC-201", 2);
+                BasicCommands.drawCard(out, clickedCard, handPosition, 1);
+            }
+        
+            int validTargetCount = gameState.highlightValidSpellTargets(out, clickedCard);
+            System.out.println("[SPELL] validTargetCount=" + validTargetCount);
+        
+            if (validTargetCount == 0) {
+                if (out != null) {
+                    BasicCommands.addPlayer1Notification(out, "No valid spell targets", 2);
+                }
+                gameState.clearCardSelection(out);
             }
             return;
         }

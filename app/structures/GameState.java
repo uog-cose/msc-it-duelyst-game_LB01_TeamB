@@ -38,6 +38,7 @@ public class GameState {
     // Runtime HP tracking for non-avatar units (avatars use Player health)
     public Map<Unit, Integer> unitHealth = new HashMap<>();
     public Map<Unit, Integer> unitAttack = new HashMap<>();
+    public Map<Unit, Boolean> unitHasAttackedThisTurn = new HashMap<>();
     // [SC-505] List to keep track of currently highlighted tiles on the board
     public List<Tile> highlightedTiles = new ArrayList<>();
 
@@ -87,6 +88,7 @@ public class GameState {
         highlightedSpellTiles.clear();
         unitHealth.clear();
         unitAttack.clear();
+        unitHasAttackedThisTurn.clear();
 
         selectedUnit = null;
         selectedCard = null;
@@ -451,7 +453,19 @@ public class GameState {
  
     // Combined clear to use when switching contexts entirely
     // e.g. end turn, game reset
- 
+    public boolean hasUnitAttacked(Unit unit) {
+        return unit != null && Boolean.TRUE.equals(unitHasAttackedThisTurn.get(unit));
+    }
+    
+    public void markUnitAsAttacked(Unit unit) {
+        if (unit != null) {
+            unitHasAttackedThisTurn.put(unit, true);
+        }
+    }
+    
+    public void resetUnitAttackFlags() {
+        unitHasAttackedThisTurn.clear();
+    }
     // Clears BOTH move and summon highlights + resets unit/card selection
     public void clearAllHighlights(ActorRef out) {
         clearMoveTileHighlights(out);

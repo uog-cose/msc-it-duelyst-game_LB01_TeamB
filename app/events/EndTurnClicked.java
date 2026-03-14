@@ -65,6 +65,9 @@ public class EndTurnClicked implements EventProcessor{
 		// SC-105: switch active player
 		gameState.humanTurn = !gameState.humanTurn;
 
+		// SC-305: new turn starts, so reset attack-lock state
+        gameState.resetUnitAttackFlags();
+
 		// advance turn counter only when human finishes
 		if (gameState.humanTurn) {
 			gameState.turnNumber++;

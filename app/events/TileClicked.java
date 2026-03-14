@@ -114,6 +114,17 @@ public class TileClicked implements EventProcessor {
             
                     // sync avatar/player HP if avatar was target
                     gameState.syncPlayerStatsUI(out);
+
+					//updating health stats after spell and attack
+					if (out != null) {
+						if (targetUnit == gameState.humanAvatar) {
+							BasicCommands.setUnitHealth(out, targetUnit, gameState.humanPlayer.getHealth());
+							BasicCommands.setUnitAttack(out, targetUnit, gameState.getUnitAttack(targetUnit));
+						} else if (targetUnit == gameState.aiAvatar) {
+							BasicCommands.setUnitHealth(out, targetUnit, gameState.aiPlayer.getHealth());
+							BasicCommands.setUnitAttack(out, targetUnit, gameState.getUnitAttack(targetUnit));
+						}
+					}
             
                     gameState.humanPlayer.hand.remove(gameState.selectedHandPosition - 1);
                     gameState.refreshHumanHandUI(out);
@@ -283,10 +294,12 @@ public class TileClicked implements EventProcessor {
             int defenderHealth = gameState.getUnitHealth(defender) - attackerDamage;
 
             if (defender == gameState.aiAvatar) {
-                gameState.aiPlayer.setHealth(defenderHealth);
-                if (out != null) {
-                    gameState.syncPlayerStatsUI(out);
-                }
+				gameState.aiPlayer.setHealth(defenderHealth);
+				if (out != null) {
+					gameState.syncPlayerStatsUI(out);
+					BasicCommands.setUnitHealth(out, defender, gameState.aiPlayer.getHealth());
+					BasicCommands.setUnitAttack(out, defender, gameState.getUnitAttack(defender));
+				}
             } else {
                 gameState.setUnitHealth(defender, defenderHealth);
                 if (out != null) {

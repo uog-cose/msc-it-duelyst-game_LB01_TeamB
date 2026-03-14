@@ -7,7 +7,6 @@ import commands.BasicCommands;
 import structures.GameState;
 import structures.basic.Tile;
 import structures.basic.Unit;
-import structures.basic.UnitAnimationType;
 import utils.BasicObjectBuilders;
 
 /**
@@ -43,175 +42,211 @@ public class TileClicked implements EventProcessor {
             return;
         }
 
-        if (!gameState.isWithinBoard(tilex, tiley)) {
-            System.out.println("[SC-205] invalid target: outside board");
-            return;
-        }
-
-        if (gameState.selectedCard != null && gameState.selectedHandPosition >= 1) {
-
-        System.out.println("[SC-201] selected card on tileclick="
-                + gameState.getCardName(gameState.selectedCard)
-                + " selectedHandPosition=" + gameState.selectedHandPosition);
-
-        boolean highlighted = gameState.isHighlightedSummonTileByUiCoords(rawTilex, rawTiley);
-        boolean free = gameState.isTileFree(tilex, tiley);
-
-        System.out.println("[SC-201] isHighlightedByUiCoords=" + highlighted + " isTileFree=" + free);
-
-        if (!highlighted || !free) {
-            System.out.println("[SC-205] invalid target: not highlighted or not free");
-            BasicCommands.addPlayer1Notification(out, "Invalid target", 2);
-            return;
-        }
-
-        int manaCost = gameState.getCardManaCost(gameState.selectedCard);
-        System.out.println("[SC-201] tile summon manaCost=" + manaCost
-                + " currentMana=" + gameState.humanPlayer.getMana());
-
-        if (manaCost > gameState.humanPlayer.getMana()) {
-            System.out.println("[SC-205] summon blocked: not enough mana");
-            BasicCommands.addPlayer1Notification(out, "Not enough mana", 2);
-            gameState.clearCardSelection(out);
-            return;
-        }
-
-        Tile targetTile = gameState.getTile(tilex, tiley);
-        if (targetTile == null) {
-            System.out.println("[SC-205] invalid target: target tile null");
-            BasicCommands.addPlayer1Notification(out, "Invalid target", 2);
-            return;
-        }
-
-        Unit summonedUnit;
-        String unitConfigPath = gameState.buildUnitConfigPath(gameState.selectedCard);
-        System.out.println("[SC-201] loading unit from " + unitConfigPath);
-
-        try {
-            summonedUnit = BasicObjectBuilders.loadUnit(
-                    unitConfigPath,
-                    gameState.nextUnitId++,
-                    Unit.class);
-        } catch (Exception e) {
-            System.out.println("[SC-201] failed to load unit for selected card");
-            e.printStackTrace();
-            BasicCommands.addPlayer1Notification(out, "Unable to load unit for selected card", 2);
-            gameState.clearCardSelection(out);
-            return;
-        }
-
-        targetTile.setUnit(summonedUnit);
-        summonedUnit.setPositionByTile(targetTile);
-        gameState.humanUnits.add(summonedUnit);
-
-        gameState.humanPlayer.setMana(gameState.humanPlayer.getMana() - manaCost);
-        BasicCommands.setPlayer1Mana(out, gameState.humanPlayer);
-        BasicCommands.drawUnit(out, summonedUnit, targetTile);
-
-        gameState.humanPlayer.hand.remove(gameState.selectedHandPosition - 1);
-        gameState.refreshHumanHandUI(out);
-
-        gameState.clearHighlightedTiles(out);
-        gameState.selectedCard = null;
-        gameState.selectedHandPosition = -1;
-        gameState.actionSeq++;
-
-        System.out.println("[SC-201] summon success at (" + tilex + "," + tiley
-                + ") remainingMana=" + gameState.humanPlayer.getMana()
-                + " handSize=" + gameState.humanPlayer.hand.size());
-    
-    }
-    else {
-            Tile clickedTile = gameState.getTile(tilex, tiley);
-            Unit clickedUnit = clickedTile.getUnit();
-
-            if (clickedUnit != null && gameState.isFriendlyUnit(clickedUnit)) {
-                gameState.selectedUnit = clickedUnit;
-                System.out.println("[SC-303] Selected friendly unit at " + tilex + "," + tiley);
+		if (gameState.selectedCard != null && gameState.selectedHandPosition >= 1) {
+ 
+            if (!gameState.isWithinBoard(tilex, tiley)) {
+                System.out.println("[SC-205] invalid target: outside board");
+                BasicCommands.addPlayer1Notification(out, "Invalid target", 2);
                 return;
             }
+
+            //spell card handling SC-205 ro check if the selected card is a spell and handle accordingly,
+            //placing this code before summon unit part as the highlighting logic for spell cards is different 
+            //and I don't want to accidentally treat a spell card as a summon card. 
+                if (gameState.isSpellCard(gameState.selectedCard)) {
             
-            if (clickedUnit != null && gameState.isEnemyUnit(clickedUnit) && gameState.selectedUnit != null) {
-                Unit attacker = gameState.selectedUnit;
-                Unit defender = clickedUnit;
-
-                if (attacker.hasAttacked) {
-                    BasicCommands.addPlayer1Notification(out, "Unit has already attacked!", 2);
+                    boolean highlightedSpell = gameState.isHighlightedSpellTileByUiCoords(tilex, tiley);
+                    if (!highlightedSpell) {
+                        if (out != null) {
+                            BasicCommands.addPlayer1Notification(out, "Invalid target", 2);
+                        }
+                        return;
+                    }
+            
+                    Tile targetTile = gameState.getTile(tilex, tiley);
+                    if (targetTile == null || targetTile.getUnit() == null) {
+                        if (out != null) {
+                            BasicCommands.addPlayer1Notification(out, "Invalid target", 2);
+                        }
+                        return;
+                    }
+            
+                    Unit targetUnit = targetTile.getUnit();
+                    String spellName = gameState.getCardName(gameState.selectedCard);
+                    int manaCost = gameState.getCardManaCost(gameState.selectedCard);
+            
+                    if (manaCost > gameState.humanPlayer.getMana()) {
+                        if (out != null) {
+                            BasicCommands.addPlayer1Notification(out, "Not enough mana", 2);
+                        }
+                        gameState.clearCardSelection(out);
+                        return;
+                    }
+            
+                    if ("Dark Terminus".equalsIgnoreCase(spellName)) {
+                        gameState.removeUnitFromBoard(targetUnit);
+            
+                    } else if ("True Strike".equalsIgnoreCase(spellName)) {
+                        int newHp = gameState.damageTarget(targetUnit, 2);
+                        if (newHp <= 0) {
+                            gameState.removeUnitFromBoard(targetUnit);
+                        }
+            
+                    } else if ("Sundrop Elixir".equalsIgnoreCase(spellName)) {
+                        gameState.healTarget(targetUnit, 4);
+            
+                    } else {
+                        if (out != null) {
+                            BasicCommands.addPlayer1Notification(out, "Spell not implemented yet", 2);
+                        }
+                        gameState.clearCardSelection(out);
+                        return;
+                    }
+            
+                    gameState.humanPlayer.setMana(gameState.humanPlayer.getMana() - manaCost);
+                    if (out != null) {
+                        BasicCommands.setPlayer1Mana(out, gameState.humanPlayer);
+                    }
+            
+                    // sync avatar/player HP if avatar was target
+                    gameState.syncPlayerStatsUI(out);
+            
+                    gameState.humanPlayer.hand.remove(gameState.selectedHandPosition - 1);
+                    gameState.refreshHumanHandUI(out);
+            
+                    gameState.clearCardSelection(out);
+                    gameState.clearMoveTileHighlights(out);
+                    gameState.selectedUnit = null;
+                    gameState.actionSeq++;
+            
+                    System.out.println("[SPELL] cast success: " + spellName + " at (" + tilex + "," + tiley + ")");
                     return;
                 }
 
-                Tile attackerTile = gameState.findTileContainingUnit(attacker);
-                int dx = Math.abs(attackerTile.getTilex() - tilex);
-                int dy = Math.abs(attackerTile.getTiley() - tiley);
-
-                if (dx <= 1 && dy <= 1) {
-                    System.out.println("[SC-303] Attacking enemy!");
-
-                    BasicCommands.playUnitAnimation(out, attacker, UnitAnimationType.attack);
-                    BasicCommands.playUnitAnimation(out, defender, UnitAnimationType.hit);
-
-                    defender.health -= attacker.attack;
-                    BasicCommands.setUnitHealth(out, defender, defender.health);
-                    
-                    if (defender == gameState.aiAvatar) {
-                        gameState.aiPlayer.setHealth(defender.health);
-                        gameState.syncPlayerStatsUI(out);
-                    }
-
-                    attacker.hasAttacked = true;
-                    attacker.hasMoved = true; 
-
-                    gameState.clearUnitSelection(out);
-                    gameState.actionSeq++;
-                } else {
-                    BasicCommands.addPlayer1Notification(out, "Target is out of range!", 2);
-                }
+			boolean highlighted = gameState.isHighlightedSummonTileByUiCoords(tilex, tiley);
+            boolean free = gameState.isTileFree(tilex, tiley);
+ 
+            System.out.println("summon check — highlighted=" + highlighted + " free=" + free);
+ 
+            if (!highlighted || !free) {
+                System.out.println("[SC-205] invalid target: not highlighted or not free");
+                BasicCommands.addPlayer1Notification(out, "Invalid target", 2);
                 return;
             }
 
-            if (clickedUnit == null && gameState.selectedUnit != null) {
-                Unit movingUnit = gameState.selectedUnit;
+			int manaCost = gameState.getCardManaCost(gameState.selectedCard);
+            if (manaCost > gameState.humanPlayer.getMana()) {
+                System.out.println("[SC-205] summon blocked: not enough mana");
+                BasicCommands.addPlayer1Notification(out, "Not enough mana", 2);
+                gameState.clearCardSelection(out);
+                return;
+            }
 
-                if (movingUnit.hasMoved || movingUnit.hasAttacked) {
-                    BasicCommands.addPlayer1Notification(out, "Unit cannot move!", 2);
-                    return;
+			Tile targetTile = gameState.getTile(tilex, tiley);
+            if (targetTile == null) {
+                BasicCommands.addPlayer1Notification(out, "Invalid target", 2);
+                return;
+            }
+ 
+            String unitConfigPath = gameState.buildUnitConfigPath(gameState.selectedCard);
+            System.out.println("[SC-201] loading unit from " + unitConfigPath);
+ 
+            Unit summonedUnit;
+            try {
+                summonedUnit = BasicObjectBuilders.loadUnit(
+                        unitConfigPath, gameState.nextUnitId++, Unit.class);
+            } catch (Exception e) {
+                e.printStackTrace();
+                BasicCommands.addPlayer1Notification(out, "Unable to load unit", 2);
+                gameState.clearCardSelection(out);
+                return;
+            }
+
+			targetTile.setUnit(summonedUnit);
+            summonedUnit.setPositionByTile(targetTile);
+            gameState.humanUnits.add(summonedUnit);
+
+            //to handle play spell health
+            int summonedHp = gameState.getCardHealth(gameState.selectedCard);
+            gameState.setUnitHealth(summonedUnit, summonedHp);
+            System.out.println("[SC-201] summoned unit hp=" + summonedHp);
+ 
+            gameState.humanPlayer.setMana(gameState.humanPlayer.getMana() - manaCost);
+            BasicCommands.setPlayer1Mana(out, gameState.humanPlayer);
+            BasicCommands.drawUnit(out, summonedUnit, targetTile);
+ 
+            gameState.humanPlayer.hand.remove(gameState.selectedHandPosition - 1);
+            gameState.refreshHumanHandUI(out);
+ 
+            gameState.clearCardSelection(out);
+            gameState.clearMoveTileHighlights(out);
+            gameState.selectedUnit = null;
+            gameState.actionSeq++;
+ 
+            System.out.println("[SC-201] summon success at (" + tilex + "," + tiley
+                    + ") mana=" + gameState.humanPlayer.getMana()
+                    + " handSize=" + gameState.humanPlayer.hand.size());
+            return;
+
+		}
+
+         // Start of movement handling logic here
+         if (gameState.selectedUnit != null) {
+            Tile clickedMoveTile = gameState.getTile(tilex, tiley);
+
+            if (clickedMoveTile != null
+                    && clickedMoveTile.getUnit() == null
+                    && gameState.isHighlightedMoveTile(tilex, tiley)) {
+
+                Tile currentTile = gameState.findTileContainingUnit(gameState.selectedUnit);
+                if (currentTile != null) {
+                    currentTile.setUnit(null);
                 }
 
-                Tile startTile = gameState.findTileContainingUnit(movingUnit);
-                int startX = startTile.getTilex();
-                int startY = startTile.getTiley();
+                clickedMoveTile.setUnit(gameState.selectedUnit);
+                gameState.selectedUnit.setPositionByTile(clickedMoveTile);
 
-                boolean isValidMove = false;
-                int[][] offsets = {
-                        { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 }, 
-                        { 2, 0 }, { -2, 0 }, { 0, 2 }, { 0, -2 }, 
-                        { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 } 
-                };
-                
-                for (int[] offset : offsets) {
-                    if (startX + offset[0] == tilex && startY + offset[1] == tiley) {
-                        isValidMove = true;
-                        break;
-                    }
+                if (out != null) {
+                    BasicCommands.moveUnitToTile(out, gameState.selectedUnit, clickedMoveTile);
                 }
 
-                if (isValidMove) {
-                    System.out.println("[SC-301] Moving unit to " + tilex + "," + tiley);
+                System.out.println("[SC-301] moved unit to (" + tilex + "," + tiley + ")");
 
-                    BasicCommands.moveUnitToTile(out, movingUnit, clickedTile);
-
-                    startTile.setUnit(null);
-                    clickedTile.setUnit(movingUnit);
-                    movingUnit.setPositionByTile(clickedTile);
-
-                    movingUnit.hasMoved = true;
-
-                    gameState.clearUnitSelection(out);
-                    gameState.actionSeq++;
-                } else {
-                    BasicCommands.addPlayer1Notification(out, "Invalid move target!", 2);
-                }
+                gameState.clearMoveTileHighlights(out);
+                gameState.selectedUnit = null;
+                gameState.actionSeq++;
+                return;
             }
         }
+        // END of movememt handling logic
+
+        // CASE 2: No card selected to handle unit selection (SC-302)
+        Tile clickedTile = gameState.getTile(tilex, tiley);
+ 
+        if (clickedTile != null && clickedTile.getUnit() != null) {
+            Unit clickedUnit = clickedTile.getUnit();
+            boolean isFriendly = (clickedUnit == gameState.humanAvatar)
+                    || gameState.humanUnits.contains(clickedUnit);
+ 
+            if (isFriendly) {
+                if (gameState.selectedUnit == clickedUnit) {
+                    // Same unit clicked again to toggle off
+                    System.out.println("[SC-302] deselecting unit (toggle off)");
+                    gameState.clearMoveTileHighlights(out);
+                    gameState.selectedUnit = null;
+                } else {
+                    // New unit selected to clear old highlights, show new range
+                    System.out.println("[SC-302] selecting unit at (" + tilex + "," + tiley + ")");
+                    gameState.selectedUnit = clickedUnit;
+                    gameState.highlightValidMoveTiles(out, tilex, tiley);
+                }
+                return;
+            }
+        }
+
+		// Clicked empty or enemy tile with no card to clear everything
+        System.out.println("[TileClicked] clearing selection");
+        gameState.clearMoveTileHighlights(out);
+        gameState.selectedUnit = null;
     }
 }

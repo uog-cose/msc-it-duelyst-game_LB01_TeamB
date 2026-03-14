@@ -46,60 +46,64 @@ public class CardClicked implements EventProcessor {
                 + " manaCost=" + manaCost
                 + " currentMana=" + gameState.humanPlayer.getMana());
 
+        // Clicking the already selected card to unselect it
         if (gameState.selectedHandPosition == handPosition && gameState.selectedCard == clickedCard) {
             System.out.println("[SC-201] duplicate click on already selected card ignored");
             return;
         }
 
+         // Switching to a new card to clear everything first
         gameState.clearCardSelection(out);
+
+          // Also clear any movement highlights (unit and card selection are mutually exclusive)
+          gameState.clearMoveTileHighlights(out);
+          gameState.selectedUnit = null;
+
+          if (gameState.isSpellCard(clickedCard)) {
+            if (manaCost > gameState.humanPlayer.getMana()) {
+                if (out != null) {
+                    BasicCommands.addPlayer1Notification(out, "Not enough mana", 2);
+                }
+                return;
+            }
+        
+            gameState.selectedCard = clickedCard;
+            gameState.selectedHandPosition = handPosition;
+        
+            if (out != null) {
+                BasicCommands.drawCard(out, clickedCard, handPosition, 1);
+            }
+        
+            int validTargetCount = gameState.highlightValidSpellTargets(out, clickedCard);
+            System.out.println("[SPELL] validTargetCount=" + validTargetCount);
+        
+            if (validTargetCount == 0) {
+                if (out != null) {
+                    BasicCommands.addPlayer1Notification(out, "No valid spell targets", 2);
+                }
+                gameState.clearCardSelection(out);
+            }
+            return;
+        }
 
         if (manaCost > gameState.humanPlayer.getMana()) {
             if (out != null) {
-                BasicCommands.addPlayer1Notification(out, "Not enough mana", 2);
+            BasicCommands.addPlayer1Notification(out, "Not enough mana", 2);
             }
             return;
         }
 
-        // SC-202: during normal gameplay, spell cards enter target-selection mode.
-        // Keep the old direct-mana-deduction behaviour for unit tests where out == null.
-        if (gameState.isSpellCard(clickedCard)) {
-
-            if (out == null) {
-                gameState.humanPlayer.setMana(gameState.humanPlayer.getMana() - manaCost);
-                return;
-            }
-
-            gameState.selectedCard = clickedCard;
-            gameState.selectedHandPosition = handPosition;
-
-            BasicCommands.drawCard(out, clickedCard, handPosition, 1);
-
-            int validTargetCount = gameState.highlightValidSpellTargets(out);
-            System.out.println("[SC-202] validSpellTargetCount=" + validTargetCount);
-
-            if (validTargetCount == 0) {
-                BasicCommands.addPlayer1Notification(out, "No valid spell targets", 2);
-                gameState.clearCardSelection(out);
-                return;
-            }
-
-            BasicCommands.addPlayer1Notification(out, "Select a target tile for the spell", 2);
-
-            // spell effects will be handled later in TileClicked
-            return;
-        }
-
+        // Select this card and show summon highlights
         gameState.selectedCard = clickedCard;
         gameState.selectedHandPosition = handPosition;
-        if (out != null) {
-            BasicCommands.drawCard(out, clickedCard, handPosition, 1);
-        }
+        BasicCommands.drawCard(out, clickedCard, handPosition, 1);
+
         int validTargetCount = gameState.highlightValidSummonTiles(out);
         System.out.println("[SC-201] validTargetCount=" + validTargetCount);
 
         if (validTargetCount == 0) {
             if (out != null) {
-                BasicCommands.addPlayer1Notification(out, "No valid summon tiles", 2);
+            BasicCommands.addPlayer1Notification(out, "No valid summon tiles", 2);
             }
             gameState.clearCardSelection(out);
         }

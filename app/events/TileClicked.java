@@ -169,7 +169,9 @@ public class TileClicked implements EventProcessor {
             //to handle play spell health
             int summonedHp = gameState.getCardHealth(gameState.selectedCard);
             gameState.setUnitHealth(summonedUnit, summonedHp);
-            System.out.println("[SC-201] summoned unit hp=" + summonedHp);
+            int summonedAtk = gameState.getCardAttack(gameState.selectedCard);
+            gameState.setUnitAttack(summonedUnit, summonedAtk);
+            System.out.println("summoned unit hp and attack" + summonedHp + summonedAtk);
  
             gameState.humanPlayer.setMana(gameState.humanPlayer.getMana() - manaCost);
             BasicCommands.setPlayer1Mana(out, gameState.humanPlayer);
@@ -242,6 +244,67 @@ public class TileClicked implements EventProcessor {
                 }
                 return;
             }
+        }
+
+
+        // CASE 3: Attack enemy with selected unit/avatar SC-303
+        if (clickedTile != null
+            && clickedTile.getUnit() != null
+            && gameState.selectedUnit != null
+            && gameState.isEnemyUnit(clickedTile.getUnit())) {
+
+        Unit attacker = gameState.selectedUnit;
+        Unit defender = clickedTile.getUnit();
+
+        Tile attackerTile = gameState.findTileContainingUnit(attacker);
+        if (attackerTile == null) return;
+
+        int dx = Math.abs(attackerTile.getTilex() - tilex);
+        int dy = Math.abs(attackerTile.getTiley() - tiley);
+
+        // melee range: adjacent 8 directions
+        if (dx <= 1 && dy <= 1 && !(dx == 0 && dy == 0)) {
+
+            if (out != null) {
+                BasicCommands.playUnitAnimation(out, attacker, structures.basic.UnitAnimationType.attack);
+                BasicCommands.playUnitAnimation(out, defender, structures.basic.UnitAnimationType.hit);
+            }
+
+            int attackerDamage = gameState.getUnitAttack(attacker);
+            int defenderHealth = gameState.getUnitHealth(defender) - attackerDamage;
+
+            if (defender == gameState.aiAvatar) {
+                gameState.aiPlayer.setHealth(defenderHealth);
+                if (out != null) {
+                    gameState.syncPlayerStatsUI(out);
+                }
+            } else {
+                gameState.setUnitHealth(defender, defenderHealth);
+                if (out != null) {
+                    BasicCommands.setUnitHealth(out, defender, defenderHealth);
+                }
+
+                if (defenderHealth <= 0) {
+                    gameState.removeUnitFromBoard(defender);
+                    if (out != null) {
+                        BasicCommands.deleteUnit(out, defender);
+                    }
+                }
+            }
+
+            gameState.clearMoveTileHighlights(out);
+            gameState.selectedUnit = null;
+            gameState.actionSeq++;
+
+            System.out.println("[SC-303] attack success at (" + tilex + "," + tiley + ")");
+            return;
+
+        } else {
+            if (out != null) {
+                BasicCommands.addPlayer1Notification(out, "Target is out of range!", 2);
+            }
+            return;
+        }
         }
 
 		// Clicked empty or enemy tile with no card to clear everything

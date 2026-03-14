@@ -150,9 +150,9 @@ public class GameState {
             int ny = startY + offset[1];
             if (isWithinBoard(nx, ny) && isTileFree(nx, ny)) {
                 Tile t = board[nx][ny];
-                if (out != null) {
+                
                     BasicCommands.drawTile(out, t, 1);
-                }
+            
                 highlightedMoveTiles.add(t);
             }
         }

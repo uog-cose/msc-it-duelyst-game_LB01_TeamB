@@ -25,13 +25,6 @@ public class Unit {
 	Position position;
 	UnitAnimationSet animations;
 	ImageCorrection correction;
-
-	public int attack = 2;  
-	public int health = 20;
-	public int maxHealth = 20;
-	
-	public boolean hasAttacked = false;
-	public boolean hasMoved = false;
 	
 	public Unit() {}
 	

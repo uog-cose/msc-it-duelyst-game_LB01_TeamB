@@ -250,20 +250,32 @@ public class TileClicked implements EventProcessor {
             boolean isFriendly = (clickedUnit == gameState.humanAvatar)
                     || gameState.humanUnits.contains(clickedUnit);
  
-            if (isFriendly) {
-                if (gameState.selectedUnit == clickedUnit) {
-                    // Same unit clicked again to toggle off
-                    System.out.println("[SC-302] deselecting unit (toggle off)");
-                    gameState.clearMoveTileHighlights(out);
-                    gameState.selectedUnit = null;
-                } else {
-                    // New unit selected to clear old highlights, show new range
-                    System.out.println("[SC-302] selecting unit at (" + tilex + "," + tiley + ")");
-                    gameState.selectedUnit = clickedUnit;
-                    gameState.highlightValidMoveTiles(out, tilex, tiley);
-                }
-                return;
-            }
+					if (isFriendly) {
+
+						if (gameState.hasUnitAttacked(clickedUnit)) {
+							System.out.println("[SC-305] unit already attacked, movement blocked");
+							gameState.clearMoveTileHighlights(out);
+							gameState.selectedUnit = null;
+					
+							if (out != null) {
+								BasicCommands.addPlayer1Notification(out, "This unit cannot move after attacking", 2);
+							}
+							return;
+						}
+					
+						if (gameState.selectedUnit == clickedUnit) {
+							// Same unit clicked again to toggle off
+							System.out.println("[SC-302] deselecting unit (toggle off)");
+							gameState.clearMoveTileHighlights(out);
+							gameState.selectedUnit = null;
+						} else {
+							// New unit selected to clear old highlights, show new range
+							System.out.println("[SC-302] selecting unit at (" + tilex + "," + tiley + ")");
+							gameState.selectedUnit = clickedUnit;
+							gameState.highlightValidMoveTiles(out, tilex, tiley);
+						}
+						return;
+					}
         }
 
 
@@ -313,7 +325,7 @@ public class TileClicked implements EventProcessor {
                     }
                 }
             }
-
+			gameState.markUnitAsAttacked(attacker);
             gameState.clearMoveTileHighlights(out);
             gameState.selectedUnit = null;
             gameState.actionSeq++;

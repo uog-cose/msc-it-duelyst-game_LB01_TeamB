@@ -325,6 +325,46 @@ public class TileClicked implements EventProcessor {
                     }
                 }
             }
+			
+			boolean defenderAlive = false;
+			if (defender == gameState.aiAvatar) {
+			    defenderAlive = gameState.aiPlayer.getHealth() > 0;
+			} else {
+			    defenderAlive = gameState.getUnitHealth(defender) > 0;
+			}
+			
+			if (defenderAlive && !defender.hasCounterAttacked()) {
+			    int defenderDamage = gameState.getUnitAttack(defender);
+			    int attackerHealth = gameState.getUnitHealth(attacker) - defenderDamage;
+			
+			    if (out != null) {
+			        BasicCommands.playUnitAnimation(out, defender, structures.basic.UnitAnimationType.attack);
+			        BasicCommands.playUnitAnimation(out, attacker, structures.basic.UnitAnimationType.hit);
+			    }
+			
+			    if (attacker == gameState.humanAvatar) {
+			        gameState.humanPlayer.setHealth(attackerHealth);
+			        if (out != null) {
+			            gameState.syncPlayerStatsUI(out);
+			            BasicCommands.setUnitHealth(out, attacker, gameState.humanPlayer.getHealth());
+			            BasicCommands.setUnitAttack(out, attacker, gameState.getUnitAttack(attacker));
+			        }
+			    } else {
+			        gameState.setUnitHealth(attacker, attackerHealth);
+			        if (out != null) {
+			            BasicCommands.setUnitHealth(out, attacker, attackerHealth);
+			        }
+			
+			        if (attackerHealth <= 0) {
+			            gameState.removeUnitFromBoard(attacker);
+			            if (out != null) {
+			                BasicCommands.deleteUnit(out, attacker);
+			            }
+			        }
+			    }
+			
+			    defender.setHasCounterAttacked(true);
+			}
 			gameState.markUnitAsAttacked(attacker);
             gameState.clearMoveTileHighlights(out);
             gameState.selectedUnit = null;

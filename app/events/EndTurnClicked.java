@@ -68,6 +68,16 @@ public class EndTurnClicked implements EventProcessor{
 		// SC-305: new turn starts, so reset attack-lock state
         gameState.resetUnitAttackFlags();
 
+		//sc-304
+		for (int x = 0; x < 9; x++) {
+	    for (int y = 0; y < 5; y++) {
+	        Tile tile = gameState.getTile(x, y);
+	        if (tile != null && tile.getUnit() != null) {
+	            tile.getUnit().setHasCounterAttacked(false);
+		        }
+		    }
+		}
+				
 		// advance turn counter only when human finishes
 		if (gameState.humanTurn) {
 			gameState.turnNumber++;

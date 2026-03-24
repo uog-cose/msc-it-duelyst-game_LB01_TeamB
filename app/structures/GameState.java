@@ -306,11 +306,12 @@ public class GameState {
                 Unit u = t.getUnit();
                 boolean valid = false;
     
-                if ("Dark Terminus".equalsIgnoreCase(spellName)
-                        || "True Strike".equalsIgnoreCase(spellName)) {
-                    valid = aiUnits.contains(u) || u == aiAvatar;
+                if ("Dark Terminus".equalsIgnoreCase(spellName)) {
+                    valid = aiUnits.contains(u); // only enemy creatures, not on  avatar
+                } else if ("True Strike".equalsIgnoreCase(spellName)) {
+                    valid = aiUnits.contains(u) || u == aiAvatar; // all enemy -> creatures + avatar
                 } else if ("Sundrop Elixir".equalsIgnoreCase(spellName)) {
-                    valid = humanUnits.contains(u) || u == humanAvatar;
+                    valid = humanUnits.contains(u) || u == humanAvatar; // all friendly 
                 }
     
                 if (valid) {

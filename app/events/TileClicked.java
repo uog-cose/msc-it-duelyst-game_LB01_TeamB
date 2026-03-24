@@ -110,6 +110,29 @@ public class TileClicked implements EventProcessor {
                         gameState.gameInitalised = false;
                         return;
                     }
+
+                    // Wraithling spawn on destroyed unit's tile
+                    Tile spawnTile = gameState.getTile(tilex, tiley);
+                    if (spawnTile != null && spawnTile.getUnit() == null) {
+                        Unit wraithling = BasicObjectBuilders.loadUnit(
+                                utils.StaticConfFiles.wraithling, gameState.nextUnitId++, Unit.class);
+                        spawnTile.setUnit(wraithling);
+                        wraithling.setPositionByTile(spawnTile);
+                        gameState.humanUnits.add(wraithling);
+                        gameState.setUnitHealth(wraithling, 1);
+                        gameState.setUnitAttack(wraithling, 1);
+                        if (out != null) {
+                            BasicCommands.drawUnit(out, wraithling, spawnTile);
+                            try {
+                                Thread.sleep(50);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                            BasicCommands.setUnitHealth(out, wraithling, 1);
+                            BasicCommands.setUnitAttack(out, wraithling, 1);
+                        }
+                    }
+
                 } else if ("True Strike".equalsIgnoreCase(spellName)) {
                     int newHp = gameState.damageTarget(targetUnit, 2);
                     if (newHp <= 0) {

@@ -26,6 +26,8 @@ public class Unit {
 	UnitAnimationSet animations;
 	ImageCorrection correction;
 	
+	boolean hasCounterAttacked = false;
+	
 	public Unit() {}
 	
 	public Unit(int id, UnitAnimationSet animations, ImageCorrection correction) {
@@ -95,6 +97,14 @@ public class Unit {
 
 	public void setAnimations(UnitAnimationSet animations) {
 		this.animations = animations;
+	}
+
+	public boolean hasCounterAttacked() {
+		return hasCounterAttacked;
+	}
+
+	public void setHasCounterAttacked(boolean hasCounterAttacked) {
+		this.hasCounterAttacked = hasCounterAttacked;
 	}
 	
 	/**

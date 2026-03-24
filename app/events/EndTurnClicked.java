@@ -4,12 +4,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import akka.actor.ActorRef;
 import commands.BasicCommands;
+import structures.AITurn;
 import structures.GameState;
 import structures.basic.Card;
 import structures.basic.Tile;
 
 /**
- * Indicates that the user has clicked an object on the game canvas, in this case
+ * Indicates that the user has clicked an object on the game canvas, in this
+ * case
  * the end-turn button.
  * * {
  * messageType = “endTurnClicked”
@@ -17,24 +19,22 @@ import structures.basic.Tile;
  * * @author Dr. Richard McCreadie
  *
  */
-public class EndTurnClicked implements EventProcessor{
+public class EndTurnClicked implements EventProcessor {
 
 	@Override
 	public void processEvent(ActorRef out, GameState gameState, JsonNode message) {
 
 		System.out.println("END TURN CLICKED: humanTurn was " + gameState.humanTurn + " turn=" + gameState.turnNumber);
 
-		// ==========================================
-		// [SC-505] Turn End Cleanup / State Reset
-		// ==========================================
-		// Optimized: Only clear tiles that are actually highlighted to prevent WebSocket buffer overflow.
+		// SC-505 Turn End Cleanup / State Reset
+		// Optimized: Only clear tiles that are actually highlighted to prevent
+		// WebSocket buffer overflow.
 		if (gameState.highlightedTiles != null && !gameState.highlightedTiles.isEmpty()) {
 			for (Tile tile : gameState.highlightedTiles) {
 				BasicCommands.drawTile(out, tile, 0);
 			}
 			gameState.highlightedTiles.clear();
 		}
-		// ==========================================
 
 		// SC-107: Draw & Burn logic before switching turns
 		if (gameState.humanTurn) {
@@ -45,16 +45,16 @@ public class EndTurnClicked implements EventProcessor{
 					gameState.humanPlayer.hand.add(drawnCard);
 					int newPosition = gameState.humanPlayer.hand.size();
 					if (out != null) {
-					BasicCommands.drawCard(out, drawnCard, newPosition, 0);
-				}
+						BasicCommands.drawCard(out, drawnCard, newPosition, 0);
+					}
 				} else {
 					if (out != null) {
-					BasicCommands.addPlayer1Notification(out, "Hand Full! Card Burned!", 2);
+						BasicCommands.addPlayer1Notification(out, "Hand Full! Card Burned!", 2);
 					}
 				}
 			} else {
 				if (out != null) {
-				BasicCommands.addPlayer1Notification(out, "Deck is Empty!", 2);
+					BasicCommands.addPlayer1Notification(out, "Deck is Empty!", 2);
 				}
 			}
 		}
@@ -66,18 +66,18 @@ public class EndTurnClicked implements EventProcessor{
 		gameState.humanTurn = !gameState.humanTurn;
 
 		// SC-305: new turn starts, so reset attack-lock state
-        gameState.resetUnitAttackFlags();
+		gameState.resetUnitAttackFlags();
 
-		//sc-304
+		// sc-304
 		for (int x = 0; x < 9; x++) {
-	    for (int y = 0; y < 5; y++) {
-	        Tile tile = gameState.getTile(x, y);
-	        if (tile != null && tile.getUnit() != null) {
-	            tile.getUnit().setHasCounterAttacked(false);
-		        }
-		    }
+			for (int y = 0; y < 5; y++) {
+				Tile tile = gameState.getTile(x, y);
+				if (tile != null && tile.getUnit() != null) {
+					tile.getUnit().setHasCounterAttacked(false);
+				}
+			}
 		}
-				
+
 		// advance turn counter only when human finishes
 		if (gameState.humanTurn) {
 			gameState.turnNumber++;
@@ -95,6 +95,16 @@ public class EndTurnClicked implements EventProcessor{
 		// SC-402: Use new utility to sync UI easily
 		if (out != null) {
 			gameState.syncPlayerStatsUI(out);
+		}
+
+		// AI turn triggers here
+		if (!gameState.humanTurn && gameState.gameInitalised) {
+			try {
+				Thread.sleep(500);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			new AITurn().execute(out, gameState);
 		}
 	}
 

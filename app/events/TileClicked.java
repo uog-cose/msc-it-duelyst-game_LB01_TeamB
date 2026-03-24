@@ -107,7 +107,8 @@ public class TileClicked implements EventProcessor {
                     // SC-WIN: Dark Terminus destroys AI avatar thus HUMAN WINS
                     if (targetUnit == gameState.aiAvatar) {
                         BasicCommands.addPlayer1Notification(out, "You Win!", 5);
-                        gameState.gameInitalised = false;
+                        // gameState.gameInitalised = false;
+                        gameState.endGame(out, "You Win!");
                         return;
                     }
 
@@ -155,7 +156,8 @@ public class TileClicked implements EventProcessor {
                         // SC-WIN: True Strike destroys AI avatar - HUMAN WINS
                         if (targetUnit == gameState.aiAvatar) {
                             BasicCommands.addPlayer1Notification(out, "You Win!", 5);
-                            gameState.gameInitalised = false;
+                            // gameState.gameInitalised = false;
+                            gameState.endGame(out, "You Win!");
                             return;
                         }
                     }
@@ -421,7 +423,8 @@ public class TileClicked implements EventProcessor {
                             BasicCommands.deleteUnit(out, defender);
                             // Game Over: AI avatar defeated — human wins, lock the game
                             BasicCommands.addPlayer1Notification(out, "You Win!", 5);
-                            gameState.gameInitalised = false;
+                            // gameState.gameInitalised = false;
+                            gameState.endGame(out, "You Win!");
                             return;
                         }
 
@@ -498,7 +501,8 @@ public class TileClicked implements EventProcessor {
                             // game
                             if (attackerHealth <= 0) {
                                 BasicCommands.addPlayer1Notification(out, "You Lose!", 5);
-                                gameState.gameInitalised = false;
+                                // gameState.gameInitalised = false;
+                                gameState.endGame(out, "You Lose!");
                                 return;
                             }
                         }

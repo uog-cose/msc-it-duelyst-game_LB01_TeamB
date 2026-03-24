@@ -618,6 +618,36 @@ public class GameState {
         return "";
     }
 
+    public void endGame(ActorRef out, String message) {
+        if (out != null) {
+            BasicCommands.addPlayer1Notification(out, message, 5);
+            try { Thread.sleep(2000); } catch (InterruptedException e) { e.printStackTrace(); }
+        }
+        
+        // Remove all units from board 
+        for (int x = 0; x < 9; x++) {
+            for (int y = 0; y < 5; y++) {
+                Tile t = board[x][y];
+                if (t != null && t.getUnit() != null) {
+                    if (out != null) {
+                        BasicCommands.deleteUnit(out, t.getUnit());
+                    }
+                    t.setUnit(null);
+                }
+            }
+        }
+        
+        // Clear all highlights 
+        clearAllHighlights(out);
+        
+        // Game lock 
+        gameInitalised = false;
+        
+        if (out != null) {
+            BasicCommands.addPlayer1Notification(out, "Refresh to play again!", 5);
+        }
+    }
+
     public String buildUnitConfigPath(Card card) {
         String cardName = getCardName(card).toLowerCase()
                 .replace("'", "")

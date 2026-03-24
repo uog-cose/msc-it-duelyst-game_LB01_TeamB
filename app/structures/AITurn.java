@@ -43,12 +43,15 @@ public class AITurn {
 
         for (Card card : hand) {
             int manaCost = gameState.getCardManaCost(card);
-            if (manaCost > gameState.aiPlayer.getMana()) continue;
-            if (!card.isCreature()) continue; // spells I will implement later
+            if (manaCost > gameState.aiPlayer.getMana())
+                continue;
+            if (!card.isCreature())
+                continue; // spells I will implement later
 
             // Find a valid summon tile adjacent to AI units/avatar
             Tile summonTile = findAISummonTile(gameState);
-            if (summonTile == null) continue;
+            if (summonTile == null)
+                continue;
 
             // Load and place unit
             String configPath = gameState.buildUnitConfigPath(card);
@@ -64,6 +67,14 @@ public class AITurn {
             unit.setPositionByTile(summonTile);
             gameState.aiUnits.add(unit);
 
+            // Saving unit name for death watch
+            gameState.unitNames.put(unit,
+                    gameState.getCardName(card)
+                            .toLowerCase()
+                            .replace("'", "")
+                            .replaceAll("[^a-z0-9]+", "_")
+                            .replaceAll("^_+|_+$", ""));
+
             int hp = gameState.getCardHealth(card);
             int atk = gameState.getCardAttack(card);
             gameState.setUnitHealth(unit, hp);
@@ -74,7 +85,11 @@ public class AITurn {
 
             if (out != null) {
                 BasicCommands.drawUnit(out, unit, summonTile);
-                try { Thread.sleep(100); } catch (InterruptedException e) { e.printStackTrace(); }
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
                 BasicCommands.setUnitHealth(out, unit, hp);
                 BasicCommands.setUnitAttack(out, unit, atk);
                 gameState.syncPlayerStatsUI(out);
@@ -92,17 +107,20 @@ public class AITurn {
 
         for (Unit unit : aiUnits) {
             Tile unitTile = gameState.findTileContainingUnit(unit);
-            if (unitTile == null) continue;
+            if (unitTile == null)
+                continue;
 
             int ux = unitTile.getTilex();
             int uy = unitTile.getTiley();
 
             for (int dx = -1; dx <= 1; dx++) {
                 for (int dy = -1; dy <= 1; dy++) {
-                    if (dx == 0 && dy == 0) continue;
+                    if (dx == 0 && dy == 0)
+                        continue;
                     int nx = ux + dx;
                     int ny = uy + dy;
-                    if (!gameState.isWithinBoard(nx, ny)) continue;
+                    if (!gameState.isWithinBoard(nx, ny))
+                        continue;
                     if (gameState.isTileFree(nx, ny)) {
                         return gameState.board[nx][ny];
                     }
@@ -118,17 +136,21 @@ public class AITurn {
         toMove.add(gameState.aiAvatar);
 
         for (Unit unit : toMove) {
-            if (gameState.hasUnitAttacked(unit)) continue;
+            if (gameState.hasUnitAttacked(unit))
+                continue;
 
             Tile unitTile = gameState.findTileContainingUnit(unit);
-            if (unitTile == null) continue;
+            if (unitTile == null)
+                continue;
 
             // Already adjacent to enemy, no need to move
-            if (hasAdjacentEnemy(unitTile, gameState)) continue;
+            if (hasAdjacentEnemy(unitTile, gameState))
+                continue;
 
             // Find best tile to move toward nearest enemy
             Tile bestTile = findBestMoveTile(unit, unitTile, gameState);
-            if (bestTile == null) continue;
+            if (bestTile == null)
+                continue;
 
             // Execute move
             unitTile.setUnit(null);
@@ -138,7 +160,11 @@ public class AITurn {
 
             if (out != null) {
                 BasicCommands.moveUnitToTile(out, unit, bestTile);
-                try { Thread.sleep(100); } catch (InterruptedException e) { e.printStackTrace(); }
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
 
             System.out.println("[AI] Moved unit to ("
@@ -152,10 +178,12 @@ public class AITurn {
 
         for (int dx = -1; dx <= 1; dx++) {
             for (int dy = -1; dy <= 1; dy++) {
-                if (dx == 0 && dy == 0) continue;
+                if (dx == 0 && dy == 0)
+                    continue;
                 int nx = tx + dx;
                 int ny = ty + dy;
-                if (!gameState.isWithinBoard(nx, ny)) continue;
+                if (!gameState.isWithinBoard(nx, ny))
+                    continue;
                 Tile t = gameState.board[nx][ny];
                 if (t != null && t.getUnit() != null) {
                     Unit u = t.getUnit();
@@ -171,19 +199,21 @@ public class AITurn {
     private Tile findBestMoveTile(Unit unit, Tile unitTile, GameState gameState) {
         // Find nearest human unit/avatar
         Unit nearestEnemy = findNearestEnemy(unitTile, gameState);
-        if (nearestEnemy == null) return null;
+        if (nearestEnemy == null)
+            return null;
 
         Tile enemyTile = gameState.findTileContainingUnit(nearestEnemy);
-        if (enemyTile == null) return null;
+        if (enemyTile == null)
+            return null;
 
         int ux = unitTile.getTilex();
         int uy = unitTile.getTiley();
 
         // Valid move offsets-> 2 cardinal, 1 diagonal
         int[][] offsets = {
-            {1,0},{-1,0},{0,1},{0,-1},
-            {2,0},{-2,0},{0,2},{0,-2},
-            {1,1},{1,-1},{-1,1},{-1,-1}
+                { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 },
+                { 2, 0 }, { -2, 0 }, { 0, 2 }, { 0, -2 },
+                { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 }
         };
 
         Tile bestTile = null;
@@ -192,14 +222,15 @@ public class AITurn {
         for (int[] offset : offsets) {
             int nx = ux + offset[0];
             int ny = uy + offset[1];
-            if (!gameState.isWithinBoard(nx, ny)) continue;
-            if (!gameState.isTileFree(nx, ny)) continue;
+            if (!gameState.isWithinBoard(nx, ny))
+                continue;
+            if (!gameState.isTileFree(nx, ny))
+                continue;
 
             // Distance to enemy from this tile
             double dist = Math.sqrt(
-                Math.pow(nx - enemyTile.getTilex(), 2) +
-                Math.pow(ny - enemyTile.getTiley(), 2)
-            );
+                    Math.pow(nx - enemyTile.getTilex(), 2) +
+                            Math.pow(ny - enemyTile.getTiley(), 2));
 
             if (dist < bestDist) {
                 bestDist = dist;
@@ -219,12 +250,12 @@ public class AITurn {
 
         for (Unit enemy : enemies) {
             Tile t = gameState.findTileContainingUnit(enemy);
-            if (t == null) continue;
+            if (t == null)
+                continue;
 
             double dist = Math.sqrt(
-                Math.pow(fromTile.getTilex() - t.getTilex(), 2) +
-                Math.pow(fromTile.getTiley() - t.getTiley(), 2)
-            );
+                    Math.pow(fromTile.getTilex() - t.getTilex(), 2) +
+                            Math.pow(fromTile.getTiley() - t.getTiley(), 2));
 
             if (dist < minDist) {
                 minDist = dist;
@@ -240,23 +271,31 @@ public class AITurn {
         attackers.add(gameState.aiAvatar);
 
         for (Unit attacker : attackers) {
-            if (gameState.hasUnitAttacked(attacker)) continue;
+            if (gameState.hasUnitAttacked(attacker))
+                continue;
 
             Tile attackerTile = gameState.findTileContainingUnit(attacker);
-            if (attackerTile == null) continue;
+            if (attackerTile == null)
+                continue;
 
             // Find adjacent enemy-> priority: human avatar first
             Unit target = findAttackTarget(attackerTile, gameState);
-            if (target == null) continue;
+            if (target == null)
+                continue;
 
             Tile targetTile = gameState.findTileContainingUnit(target);
-            if (targetTile == null) continue;
+            if (targetTile == null)
+                continue;
 
             // Play animations
             if (out != null) {
                 BasicCommands.playUnitAnimation(out, attacker, UnitAnimationType.attack);
                 BasicCommands.playUnitAnimation(out, target, UnitAnimationType.hit);
-                try { Thread.sleep(100); } catch (InterruptedException e) { e.printStackTrace(); }
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
 
             // Deal damage to target
@@ -284,10 +323,14 @@ public class AITurn {
                     BasicCommands.setUnitHealth(out, target, targetHp);
                 }
                 if (targetHp <= 0) {
-                    gameState.removeUnitFromBoard(target);
+                    gameState.removeUnitFromBoard(target, out);
                     if (out != null) {
                         BasicCommands.playUnitAnimation(out, target, UnitAnimationType.death);
-                        try { Thread.sleep(100); } catch (InterruptedException e) { e.printStackTrace(); }
+                        try {
+                            Thread.sleep(100);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
                         BasicCommands.deleteUnit(out, target);
                     }
                 }
@@ -305,7 +348,11 @@ public class AITurn {
                 if (out != null) {
                     BasicCommands.playUnitAnimation(out, target, UnitAnimationType.attack);
                     BasicCommands.playUnitAnimation(out, attacker, UnitAnimationType.hit);
-                    try { Thread.sleep(100); } catch (InterruptedException e) { e.printStackTrace(); }
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                 }
 
                 if (attacker == gameState.aiAvatar) {
@@ -320,10 +367,14 @@ public class AITurn {
                         BasicCommands.setUnitHealth(out, attacker, attackerHp);
                     }
                     if (attackerHp <= 0) {
-                        gameState.removeUnitFromBoard(attacker);
+                        gameState.removeUnitFromBoard(attacker, out);
                         if (out != null) {
                             BasicCommands.playUnitAnimation(out, attacker, UnitAnimationType.death);
-                            try { Thread.sleep(100); } catch (InterruptedException e) { e.printStackTrace(); }
+                            try {
+                                Thread.sleep(100);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
                             BasicCommands.deleteUnit(out, attacker);
                         }
                     }
@@ -355,12 +406,15 @@ public class AITurn {
 
         for (int dx = -1; dx <= 1; dx++) {
             for (int dy = -1; dy <= 1; dy++) {
-                if (dx == 0 && dy == 0) continue;
+                if (dx == 0 && dy == 0)
+                    continue;
                 int nx = tx + dx;
                 int ny = ty + dy;
-                if (!gameState.isWithinBoard(nx, ny)) continue;
+                if (!gameState.isWithinBoard(nx, ny))
+                    continue;
                 Tile t = gameState.board[nx][ny];
-                if (t == null || t.getUnit() == null) continue;
+                if (t == null || t.getUnit() == null)
+                    continue;
                 Unit u = t.getUnit();
                 if (u == gameState.humanAvatar || gameState.humanUnits.contains(u)) {
                     int hp = gameState.getUnitHealth(u);

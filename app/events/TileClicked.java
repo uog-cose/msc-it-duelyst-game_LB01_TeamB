@@ -98,7 +98,7 @@ public class TileClicked implements EventProcessor {
                         }
                     }
 
-                    gameState.removeUnitFromBoard(targetUnit);
+                    gameState.removeUnitFromBoard(targetUnit, out);
 
                     if (out != null) {
                         BasicCommands.deleteUnit(out, targetUnit);
@@ -147,7 +147,7 @@ public class TileClicked implements EventProcessor {
                             }
                         }
 
-                        gameState.removeUnitFromBoard(targetUnit);
+                        gameState.removeUnitFromBoard(targetUnit, out);
 
                         if (out != null) {
                             BasicCommands.deleteUnit(out, targetUnit);
@@ -250,6 +250,14 @@ public class TileClicked implements EventProcessor {
             targetTile.setUnit(summonedUnit);
             summonedUnit.setPositionByTile(targetTile);
             gameState.humanUnits.add(summonedUnit);
+
+            // Saving unit name for deathwatch
+            gameState.unitNames.put(summonedUnit,
+                    gameState.getCardName(gameState.selectedCard)
+                            .toLowerCase()
+                            .replace("'", "")
+                            .replaceAll("[^a-z0-9]+", "_")
+                            .replaceAll("^_+|_+$", ""));
 
             // to handle play spell health
             int summonedHp = gameState.getCardHealth(gameState.selectedCard);
@@ -460,7 +468,7 @@ public class TileClicked implements EventProcessor {
                             }
                         }
 
-                        gameState.removeUnitFromBoard(defender);
+                        gameState.removeUnitFromBoard(defender, out);
 
                         if (out != null) {
                             BasicCommands.deleteUnit(out, defender);
@@ -521,7 +529,7 @@ public class TileClicked implements EventProcessor {
                                 }
                             }
 
-                            gameState.removeUnitFromBoard(attacker);
+                            gameState.removeUnitFromBoard(attacker, out);
 
                             if (out != null) {
                                 BasicCommands.deleteUnit(out, attacker);

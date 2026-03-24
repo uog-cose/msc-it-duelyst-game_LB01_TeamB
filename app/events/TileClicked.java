@@ -259,6 +259,10 @@ public class TileClicked implements EventProcessor {
                             .replaceAll("[^a-z0-9]+", "_")
                             .replaceAll("^_+|_+$", ""));
 
+            // Adding Opening Gambit trigger
+            gameState.triggerOpeningGambit(out, summonedUnit, targetTile, true);
+
+
             // to handle play spell health
             int summonedHp = gameState.getCardHealth(gameState.selectedCard);
             gameState.setUnitHealth(summonedUnit, summonedHp);

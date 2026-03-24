@@ -42,6 +42,7 @@ public class GameState {
     public Map<Unit, Boolean> unitHasAttackedThisTurn = new HashMap<>();
     public Map<Unit, Boolean> unitHasMovedThisTurn = new HashMap<>();
     public Map<Unit, String> unitNames = new HashMap<>();
+    public Map<Unit, Integer> unitMaxHealth = new HashMap<>();
     // [SC-505] List to keep track of currently highlighted tiles on the board
     public List<Tile> highlightedTiles = new ArrayList<>();
 
@@ -93,6 +94,7 @@ public class GameState {
         unitAttack.clear();
         unitHasAttackedThisTurn.clear();
         unitNames.clear();
+        unitMaxHealth.clear();
 
         selectedUnit = null;
         selectedCard = null;
@@ -387,6 +389,8 @@ public class GameState {
     public void setUnitHealth(Unit unit, int hp) {
         if (unit != null) {
             unitHealth.put(unit, hp);
+            // setting max health for 1st attempt
+            unitMaxHealth.putIfAbsent(unit, hp);
         }
     }
 
@@ -812,6 +816,65 @@ public class GameState {
                     return;
                 }
             }
+        }
+    }
+
+    public void triggerOpeningGambit(ActorRef out, Unit summoned, Tile summonedTile, boolean isHuman) {
+        String name = getUnitName(summoned);
+        if (name.isEmpty()) return;
+    
+        if ("gloom_chaser".equalsIgnoreCase(name)) {
+            // Wraithling summon directly behind (x-1 for human, x+1 for AI)
+            int behindX = isHuman ? summonedTile.getTilex() - 1 : summonedTile.getTilex() + 1;
+            int behindY = summonedTile.getTiley();
+    
+            if (isWithinBoard(behindX, behindY) && isTileFree(behindX, behindY)) {
+                spawnWraithling(out, board[behindX][behindY], isHuman);
+                System.out.println("[OPENING GAMBIT] Gloom Chaser spawned Wraithling behind");
+            } else {
+                System.out.println("[OPENING GAMBIT] Gloom Chaser: space occupied, no effect");
+            }
+    
+        } else if ("nightsorrow_assassin".equalsIgnoreCase(name)) {
+            // Destroy adjacent enemy unit that is below max health
+            int tx = summonedTile.getTilex();
+            int ty = summonedTile.getTiley();
+    
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    if (dx == 0 && dy == 0) continue;
+                    int nx = tx + dx;
+                    int ny = ty + dy;
+                    if (!isWithinBoard(nx, ny)) continue;
+    
+                    Tile t = board[nx][ny];
+                    if (t == null || t.getUnit() == null) continue;
+    
+                    Unit target = t.getUnit();
+                    boolean isEnemy = isHuman
+                            ? (target == aiAvatar || aiUnits.contains(target))
+                            : (target == humanAvatar || humanUnits.contains(target));
+    
+                    if (!isEnemy) continue;
+    
+                    // Check if below max health
+                    int currentHp = getUnitHealth(target);
+                    int maxHp = unitMaxHealth.getOrDefault(target, currentHp);
+    
+                    if (currentHp < maxHp) {
+                        if (out != null) {
+                            commands.BasicCommands.playUnitAnimation(out, target,
+                                structures.basic.UnitAnimationType.death);
+                            try { Thread.sleep(100); } catch (InterruptedException e) { e.printStackTrace(); }
+                            commands.BasicCommands.deleteUnit(out, target);
+                        }
+                        removeUnitFromBoard(target, out);
+                        System.out.println("OPENING GAMBIT, Nightsorrow Assassin destroyed damaged enemy");
+                        return; //  destroy only one unit
+                    }
+                }
+            }
+            System.out.println("OPENING GAMBIT, Nightsorrow Assassin: no damaged enemy adjacent");
         }
     }
 

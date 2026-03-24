@@ -98,7 +98,7 @@ public class TileClicked implements EventProcessor {
                         }
                     }
 
-                    gameState.removeUnitFromBoard(targetUnit);
+                    gameState.removeUnitFromBoard(targetUnit, out);
 
                     if (out != null) {
                         BasicCommands.deleteUnit(out, targetUnit);
@@ -107,9 +107,33 @@ public class TileClicked implements EventProcessor {
                     // SC-WIN: Dark Terminus destroys AI avatar thus HUMAN WINS
                     if (targetUnit == gameState.aiAvatar) {
                         BasicCommands.addPlayer1Notification(out, "You Win!", 5);
-                        gameState.gameInitalised = false;
+                        // gameState.gameInitalised = false;
+                        gameState.endGame(out, "You Win!");
                         return;
                     }
+
+                    // Wraithling spawn on destroyed unit's tile
+                    Tile spawnTile = gameState.getTile(tilex, tiley);
+                    if (spawnTile != null && spawnTile.getUnit() == null) {
+                        Unit wraithling = BasicObjectBuilders.loadUnit(
+                                utils.StaticConfFiles.wraithling, gameState.nextUnitId++, Unit.class);
+                        spawnTile.setUnit(wraithling);
+                        wraithling.setPositionByTile(spawnTile);
+                        gameState.humanUnits.add(wraithling);
+                        gameState.setUnitHealth(wraithling, 1);
+                        gameState.setUnitAttack(wraithling, 1);
+                        if (out != null) {
+                            BasicCommands.drawUnit(out, wraithling, spawnTile);
+                            try {
+                                Thread.sleep(50);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                            BasicCommands.setUnitHealth(out, wraithling, 1);
+                            BasicCommands.setUnitAttack(out, wraithling, 1);
+                        }
+                    }
+
                 } else if ("True Strike".equalsIgnoreCase(spellName)) {
                     int newHp = gameState.damageTarget(targetUnit, 2);
                     if (newHp <= 0) {
@@ -123,7 +147,7 @@ public class TileClicked implements EventProcessor {
                             }
                         }
 
-                        gameState.removeUnitFromBoard(targetUnit);
+                        gameState.removeUnitFromBoard(targetUnit, out);
 
                         if (out != null) {
                             BasicCommands.deleteUnit(out, targetUnit);
@@ -132,7 +156,8 @@ public class TileClicked implements EventProcessor {
                         // SC-WIN: True Strike destroys AI avatar - HUMAN WINS
                         if (targetUnit == gameState.aiAvatar) {
                             BasicCommands.addPlayer1Notification(out, "You Win!", 5);
-                            gameState.gameInitalised = false;
+                            // gameState.gameInitalised = false;
+                            gameState.endGame(out, "You Win!");
                             return;
                         }
                     }
@@ -225,6 +250,14 @@ public class TileClicked implements EventProcessor {
             targetTile.setUnit(summonedUnit);
             summonedUnit.setPositionByTile(targetTile);
             gameState.humanUnits.add(summonedUnit);
+
+            // Saving unit name for deathwatch
+            gameState.unitNames.put(summonedUnit,
+                    gameState.getCardName(gameState.selectedCard)
+                            .toLowerCase()
+                            .replace("'", "")
+                            .replaceAll("[^a-z0-9]+", "_")
+                            .replaceAll("^_+|_+$", ""));
 
             // to handle play spell health
             int summonedHp = gameState.getCardHealth(gameState.selectedCard);
@@ -398,7 +431,8 @@ public class TileClicked implements EventProcessor {
                             BasicCommands.deleteUnit(out, defender);
                             // Game Over: AI avatar defeated — human wins, lock the game
                             BasicCommands.addPlayer1Notification(out, "You Win!", 5);
-                            gameState.gameInitalised = false;
+                            // gameState.gameInitalised = false;
+                            gameState.endGame(out, "You Win!");
                             return;
                         }
 
@@ -434,7 +468,7 @@ public class TileClicked implements EventProcessor {
                             }
                         }
 
-                        gameState.removeUnitFromBoard(defender);
+                        gameState.removeUnitFromBoard(defender, out);
 
                         if (out != null) {
                             BasicCommands.deleteUnit(out, defender);
@@ -475,7 +509,8 @@ public class TileClicked implements EventProcessor {
                             // game
                             if (attackerHealth <= 0) {
                                 BasicCommands.addPlayer1Notification(out, "You Lose!", 5);
-                                gameState.gameInitalised = false;
+                                // gameState.gameInitalised = false;
+                                gameState.endGame(out, "You Lose!");
                                 return;
                             }
                         }
@@ -494,7 +529,7 @@ public class TileClicked implements EventProcessor {
                                 }
                             }
 
-                            gameState.removeUnitFromBoard(attacker);
+                            gameState.removeUnitFromBoard(attacker, out);
 
                             if (out != null) {
                                 BasicCommands.deleteUnit(out, attacker);

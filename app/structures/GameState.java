@@ -17,6 +17,7 @@ import java.util.Map;
 /**
  * This class can be used to hold information about the on-going game.
  * Its created with the GameActor.
+ * 
  * @author Dr. Richard McCreadie
  *
  */
@@ -40,6 +41,7 @@ public class GameState {
     public Map<Unit, Integer> unitAttack = new HashMap<>();
     public Map<Unit, Boolean> unitHasAttackedThisTurn = new HashMap<>();
     public Map<Unit, Boolean> unitHasMovedThisTurn = new HashMap<>();
+    public Map<Unit, String> unitNames = new HashMap<>();
     // [SC-505] List to keep track of currently highlighted tiles on the board
     public List<Tile> highlightedTiles = new ArrayList<>();
 
@@ -57,19 +59,19 @@ public class GameState {
     public Unit selectedUnit = null;
 
     // Highlight tracking for TWO separate lists, separate rules
-  
+
     // SC-201 summon: tiles adjacent (8-way) to any friendly unit/avatar
     // Cleared when card is unselected or summon completes.
     public List<Tile> highlightedSummonTiles = new ArrayList<>();
- 
+
     // SC-302 movement: 2-step cardinal + 1-step diagonal from selected unit
     // Cleared when unit is deselected or move completes.
     public List<Tile> highlightedMoveTiles = new ArrayList<>();
-    
+
     // Spell target highlighting: tiles valid for the currently selected spell
     public List<Tile> highlightedSpellTiles = new ArrayList<>();
     public boolean[][] spellTileGridByUiCoords = new boolean[10][6];
- 
+
     // Fast O(1) boolean grid for summon tile lookup during TileClicked validation
     public boolean[][] summonTileGrid = new boolean[9][5];
     public boolean[][] summonTileGridByUiCoords = new boolean[10][6];
@@ -90,6 +92,7 @@ public class GameState {
         unitHealth.clear();
         unitAttack.clear();
         unitHasAttackedThisTurn.clear();
+        unitNames.clear();
 
         selectedUnit = null;
         selectedCard = null;
@@ -119,7 +122,8 @@ public class GameState {
     }
 
     public Tile findTileContainingUnit(Unit unit) {
-        if (unit == null) return null;
+        if (unit == null)
+            return null;
         for (int x = 0; x < 9; x++)
             for (int y = 0; y < 5; y++)
                 if (board[x][y] != null && board[x][y].getUnit() == unit)
@@ -136,31 +140,34 @@ public class GameState {
     public void highlightValidMoveTiles(ActorRef out, int startX, int startY) {
         // Always clear previous move highlights before showing new ones
         clearMoveTileHighlights(out);
- 
-        if (board == null) return;
- 
+
+        if (board == null)
+            return;
+
         int[][] offsets = {
-            // cardinal 1 step
-            {  1,  0 }, { -1,  0 }, {  0,  1 }, {  0, -1 },
-            // cardinal 2 steps
-            {  2,  0 }, { -2,  0 }, {  0,  2 }, {  0, -2 },
-            // diagonal 1 step only
-            {  1,  1 }, {  1, -1 }, { -1,  1 }, { -1, -1 }
+                // cardinal 1 step
+                { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 },
+                // cardinal 2 steps
+                { 2, 0 }, { -2, 0 }, { 0, 2 }, { 0, -2 },
+                // diagonal 1 step only
+                { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 }
         };
- 
+
         for (int[] offset : offsets) {
             int nx = startX + offset[0];
             int ny = startY + offset[1];
-            if (!isWithinBoard(nx, ny)) continue;
-        
+            if (!isWithinBoard(nx, ny))
+                continue;
+
             Tile t = board[nx][ny];
-            if (t == null) continue;
-        
+            if (t == null)
+                continue;
+
             if (isTileFree(nx, ny)) {
                 BasicCommands.drawTile(out, t, 1); // grey- move tile
                 highlightedMoveTiles.add(t);
             } else if (t.getUnit() != null && isEnemyUnit(t.getUnit())) {
-                BasicCommands.drawTile(out, t, 2); // red-  enemy in range
+                BasicCommands.drawTile(out, t, 2); // red- enemy in range
                 highlightedMoveTiles.add(t);
             }
         }
@@ -170,22 +177,25 @@ public class GameState {
 
     public int highlightValidAttackTiles(ActorRef out, Unit unit) {
         Tile unitTile = findTileContainingUnit(unit);
-        if (unitTile == null) return 0;
-    
+        if (unitTile == null)
+            return 0;
+
         int ux = unitTile.getTilex();
         int uy = unitTile.getTiley();
         int count = 0;
-    
+
         for (int dx = -1; dx <= 1; dx++) {
             for (int dy = -1; dy <= 1; dy++) {
-                if (dx == 0 && dy == 0) continue;
+                if (dx == 0 && dy == 0)
+                    continue;
                 int nx = ux + dx;
                 int ny = uy + dy;
-                if (!isWithinBoard(nx, ny)) continue;
-    
+                if (!isWithinBoard(nx, ny))
+                    continue;
+
                 Tile t = board[nx][ny];
                 if (t != null && t.getUnit() != null && isEnemyUnit(t.getUnit())) {
-                    BasicCommands.drawTile(out, t, 2); //only red for enemy tile
+                    BasicCommands.drawTile(out, t, 2); // only red for enemy tile
                     highlightedMoveTiles.add(t);
                     count++;
                 }
@@ -194,33 +204,39 @@ public class GameState {
         return count;
     }
 
-    // Clear only movement range highlights 
+    // Clear only movement range highlights
     public void clearMoveTileHighlights(ActorRef out) {
         for (Tile t : highlightedMoveTiles) {
             if (out != null) {
                 BasicCommands.drawTile(out, t, 0);
             }
-            try { Thread.sleep(5); } catch (InterruptedException e) { e.printStackTrace(); }
+            try {
+                Thread.sleep(5);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
         highlightedMoveTiles.clear();
     }
 
     public boolean isHighlightedMoveTile(int x, int y) {
-        if (!isWithinBoard(x, y)) return false;
-    
+        if (!isWithinBoard(x, y))
+            return false;
+
         Tile t = board[x][y];
-        if (t == null) return false;
-    
+        if (t == null)
+            return false;
+
         return highlightedMoveTiles.contains(t);
     }
 
     // SC-201: Summon tile highlighting
     // Rules: 8-way adjacent to ALL friendly units + avatar, free tiles only
- 
+
     public int highlightValidSummonTiles(ActorRef out) {
         // Clear previous summon highlights before showing new ones
         clearSummonTileHighlights(out);
- 
+
         int count = 0;
         count += highlightAdjacentFreeTilesAroundUnit(out, humanAvatar);
         for (Unit unit : humanUnits) {
@@ -231,12 +247,12 @@ public class GameState {
     }
 
     private int highlightAdjacentFreeTilesAroundUnit(ActorRef out, Unit unit) {
-        if (unit == null) return 0;
- 
+        if (unit == null)
+            return 0;
+
         // Find unit position on board
         int originX = -1, originY = -1;
-        outer:
-        for (int x = 0; x < 9; x++) {
+        outer: for (int x = 0; x < 9; x++) {
             for (int y = 0; y < 5; y++) {
                 if (board[x][y] != null && board[x][y].getUnit() == unit) {
                     originX = x;
@@ -245,24 +261,29 @@ public class GameState {
                 }
             }
         }
-        if (originX == -1) return 0;
- 
+        if (originX == -1)
+            return 0;
+
         int count = 0;
         for (int dx = -1; dx <= 1; dx++) {
             for (int dy = -1; dy <= 1; dy++) {
-                if (dx == 0 && dy == 0) continue;
+                if (dx == 0 && dy == 0)
+                    continue;
                 int nx = originX + dx;
                 int ny = originY + dy;
- 
-                if (!isWithinBoard(nx, ny)) continue;
-                if (summonTileGrid[nx][ny]) continue; // already highlighted, skip duplicate
-                if (!isTileFree(nx, ny)) continue;
- 
+
+                if (!isWithinBoard(nx, ny))
+                    continue;
+                if (summonTileGrid[nx][ny])
+                    continue; // already highlighted, skip duplicate
+                if (!isTileFree(nx, ny))
+                    continue;
+
                 Tile t = board[nx][ny];
                 BasicCommands.drawTile(out, t, 1);
                 highlightedSummonTiles.add(t);
                 summonTileGrid[nx][ny] = true;
- 
+
                 int uiX = t.getTilex();
                 int uiY = t.getTiley();
                 if (uiX >= 0 && uiX < summonTileGridByUiCoords.length
@@ -277,13 +298,17 @@ public class GameState {
         return count;
     }
 
-    //Clear only summon highlights 
-     public void clearSummonTileHighlights(ActorRef out) {
+    // Clear only summon highlights
+    public void clearSummonTileHighlights(ActorRef out) {
         for (Tile t : highlightedSummonTiles) {
             if (out != null) {
                 BasicCommands.drawTile(out, t, 0);
             }
-            try { Thread.sleep(5); } catch (InterruptedException e) { e.printStackTrace(); }
+            try {
+                Thread.sleep(5);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
         highlightedSummonTiles.clear();
         summonTileGrid = new boolean[9][5];
@@ -292,33 +317,36 @@ public class GameState {
 
     public int highlightValidSpellTargets(ActorRef out, Card spellCard) {
         clearSpellTileHighlights(out);
-    
-        if (spellCard == null) return 0;
-    
+
+        if (spellCard == null)
+            return 0;
+
         String spellName = getCardName(spellCard);
         int count = 0;
-    
+
         for (int x = 0; x < 9; x++) {
             for (int y = 0; y < 5; y++) {
                 Tile t = board[x][y];
-                if (t == null || t.getUnit() == null) continue;
-    
+                if (t == null || t.getUnit() == null)
+                    continue;
+
                 Unit u = t.getUnit();
                 boolean valid = false;
-    
-                if ("Dark Terminus".equalsIgnoreCase(spellName)
-                        || "True Strike".equalsIgnoreCase(spellName)) {
-                    valid = aiUnits.contains(u) || u == aiAvatar;
+
+                if ("Dark Terminus".equalsIgnoreCase(spellName)) {
+                    valid = aiUnits.contains(u); // only enemy creatures, not on avatar
+                } else if ("True Strike".equalsIgnoreCase(spellName)) {
+                    valid = aiUnits.contains(u) || u == aiAvatar; // all enemy -> creatures + avatar
                 } else if ("Sundrop Elixir".equalsIgnoreCase(spellName)) {
-                    valid = humanUnits.contains(u) || u == humanAvatar;
+                    valid = humanUnits.contains(u) || u == humanAvatar; // all friendly
                 }
-    
+
                 if (valid) {
                     if (out != null) {
                         BasicCommands.drawTile(out, t, 1);
                     }
                     highlightedSpellTiles.add(t);
-    
+
                     int uiX = t.getTilex();
                     int uiY = t.getTiley();
                     if (uiX >= 0 && uiX < spellTileGridByUiCoords.length
@@ -329,21 +357,25 @@ public class GameState {
                 }
             }
         }
-    
+
         return count;
     }
-    
+
     public void clearSpellTileHighlights(ActorRef out) {
         for (Tile t : highlightedSpellTiles) {
             if (out != null) {
                 BasicCommands.drawTile(out, t, 0);
             }
-            try { Thread.sleep(5); } catch (InterruptedException e) { e.printStackTrace(); }
+            try {
+                Thread.sleep(5);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
         highlightedSpellTiles.clear();
         spellTileGridByUiCoords = new boolean[10][6];
     }
-    
+
     public boolean isHighlightedSpellTileByUiCoords(int rawTilex, int rawTiley) {
         return rawTilex >= 0
                 && rawTilex < spellTileGridByUiCoords.length
@@ -351,19 +383,22 @@ public class GameState {
                 && rawTiley < spellTileGridByUiCoords[0].length
                 && spellTileGridByUiCoords[rawTilex][rawTiley];
     }
-    
+
     public void setUnitHealth(Unit unit, int hp) {
         if (unit != null) {
             unitHealth.put(unit, hp);
         }
     }
-    
+
     public int getUnitHealth(Unit unit) {
-        if (unit == null) return 0;
-    
-        if (unit == humanAvatar) return humanPlayer.getHealth();
-        if (unit == aiAvatar) return aiPlayer.getHealth();
-    
+        if (unit == null)
+            return 0;
+
+        if (unit == humanAvatar)
+            return humanPlayer.getHealth();
+        if (unit == aiAvatar)
+            return aiPlayer.getHealth();
+
         Integer hp = unitHealth.get(unit);
         return hp == null ? 0 : hp;
     }
@@ -375,18 +410,29 @@ public class GameState {
     }
 
     public int getUnitAttack(Unit unit) {
-        if (unit == null) return 0;
-    
-        if (unit == humanAvatar) return 2;
-        if (unit == aiAvatar) return 2;
-    
+        if (unit == null)
+            return 0;
+
+        if (unit == humanAvatar)
+            return 2;
+        if (unit == aiAvatar)
+            return 2;
+
         Integer atk = unitAttack.get(unit);
         return atk == null ? 0 : atk;
     }
 
+    public String getUnitName(Unit unit) {
+        if (unit == null)
+            return "";
+        String name = unitNames.get(unit);
+        return name == null ? "" : name;
+    }
+
     public int getCardAttack(Card card) {
-        if (card == null) return 0;
-    
+        if (card == null)
+            return 0;
+
         try {
             Method getter = card.getClass().getMethod("getBigCard");
             Object bigCard = getter.invoke(card);
@@ -394,23 +440,29 @@ public class GameState {
                 try {
                     Method attackGetter = bigCard.getClass().getMethod("getAttack");
                     Object value = attackGetter.invoke(bigCard);
-                    if (value instanceof Number) return ((Number) value).intValue();
-                } catch (Exception ignored) {}
-    
+                    if (value instanceof Number)
+                        return ((Number) value).intValue();
+                } catch (Exception ignored) {
+                }
+
                 try {
                     Field attackField = bigCard.getClass().getField("attack");
                     Object value = attackField.get(bigCard);
-                    if (value instanceof Number) return ((Number) value).intValue();
-                } catch (Exception ignored) {}
+                    if (value instanceof Number)
+                        return ((Number) value).intValue();
+                } catch (Exception ignored) {
+                }
             }
-        } catch (Exception ignored) {}
-    
+        } catch (Exception ignored) {
+        }
+
         return 0;
     }
-    
+
     public void setHealthForTarget(Unit unit, int hp) {
-        if (unit == null) return;
-    
+        if (unit == null)
+            return;
+
         if (unit == humanAvatar) {
             humanPlayer.setHealth(hp);
         } else if (unit == aiAvatar) {
@@ -419,37 +471,42 @@ public class GameState {
             unitHealth.put(unit, hp);
         }
     }
-    
+
     public int damageTarget(Unit unit, int amount) {
         int newHp = getUnitHealth(unit) - amount;
         setHealthForTarget(unit, newHp);
         return newHp;
     }
-    
+
     public int healTarget(Unit unit, int amount) {
         int newHp = getUnitHealth(unit) + amount;
         setHealthForTarget(unit, newHp);
         return newHp;
     }
-    
-    public void removeUnitFromBoard(Unit unit) {
-        if (unit == null) return;
-    
+
+    public void removeUnitFromBoard(Unit unit, ActorRef out) {
+        if (unit == null)
+            return;
+
         Tile tile = findTileContainingUnit(unit);
         if (tile != null) {
             tile.setUnit(null);
         }
-    
+
         humanUnits.remove(unit);
         aiUnits.remove(unit);
         unitHealth.remove(unit);
         unitAttack.remove(unit);
+        unitNames.remove(unit);
+
+        triggerDeathwatch(out);
 
     }
-    
+
     public int getCardHealth(Card card) {
-        if (card == null) return 0;
-    
+        if (card == null)
+            return 0;
+
         try {
             Method getter = card.getClass().getMethod("getBigCard");
             Object bigCard = getter.invoke(card);
@@ -457,55 +514,65 @@ public class GameState {
                 try {
                     Method healthGetter = bigCard.getClass().getMethod("getHealth");
                     Object value = healthGetter.invoke(bigCard);
-                    if (value instanceof Number) return ((Number) value).intValue();
-                } catch (Exception ignored) {}
-    
+                    if (value instanceof Number)
+                        return ((Number) value).intValue();
+                } catch (Exception ignored) {
+                }
+
                 try {
                     Field healthField = bigCard.getClass().getField("health");
                     Object value = healthField.get(bigCard);
-                    if (value instanceof Number) return ((Number) value).intValue();
-                } catch (Exception ignored) {}
+                    if (value instanceof Number)
+                        return ((Number) value).intValue();
+                } catch (Exception ignored) {
+                }
             }
-        } catch (Exception ignored) {}
-    
+        } catch (Exception ignored) {
+        }
+
         try {
             Method getter = card.getClass().getMethod("getHealth");
             Object value = getter.invoke(card);
-            if (value instanceof Number) return ((Number) value).intValue();
-        } catch (Exception ignored) {}
-    
+            if (value instanceof Number)
+                return ((Number) value).intValue();
+        } catch (Exception ignored) {
+        }
+
         try {
             Field field = card.getClass().getField("health");
             Object value = field.get(card);
-            if (value instanceof Number) return ((Number) value).intValue();
-        } catch (Exception ignored) {}
-    
+            if (value instanceof Number)
+                return ((Number) value).intValue();
+        } catch (Exception ignored) {
+        }
+
         return 0;
     }
- 
+
     // Combined clear to use when switching contexts entirely
     // e.g. end turn, game reset
     public boolean hasUnitAttacked(Unit unit) {
         return unit != null && Boolean.TRUE.equals(unitHasAttackedThisTurn.get(unit));
     }
-    
+
     public void markUnitAsAttacked(Unit unit) {
         if (unit != null) {
             unitHasAttackedThisTurn.put(unit, true);
         }
     }
-    
+
     public boolean hasUnitMoved(Unit unit) {
         return Boolean.TRUE.equals(unitHasMovedThisTurn.get(unit));
     }
-    
+
     public void markUnitAsMoved(Unit unit) {
-        if (unit != null) unitHasMovedThisTurn.put(unit, true);
+        if (unit != null)
+            unitHasMovedThisTurn.put(unit, true);
     }
 
     public void resetUnitAttackFlags() {
         unitHasAttackedThisTurn.clear();
-        unitHasMovedThisTurn.clear(); 
+        unitHasMovedThisTurn.clear();
     }
 
     // Clears BOTH move and summon highlights + resets unit/card selection
@@ -524,7 +591,7 @@ public class GameState {
     }
 
     // Card selection state
- 
+
     public void clearCardSelection(ActorRef out) {
         if (selectedCard != null && selectedHandPosition >= 1) {
             if (out != null) {
@@ -537,15 +604,13 @@ public class GameState {
         selectedHandPosition = -1;
     }
 
-   
-
     // SC-402: Sync UI stats for both players
     public void syncPlayerStatsUI(ActorRef out) {
         if (out != null) {
-        BasicCommands.setPlayer1Health(out, this.humanPlayer);
-        BasicCommands.setPlayer1Mana(out, this.humanPlayer);
-        BasicCommands.setPlayer2Health(out, this.aiPlayer);
-        BasicCommands.setPlayer2Mana(out, this.aiPlayer);
+            BasicCommands.setPlayer1Health(out, this.humanPlayer);
+            BasicCommands.setPlayer1Mana(out, this.humanPlayer);
+            BasicCommands.setPlayer2Health(out, this.aiPlayer);
+            BasicCommands.setPlayer2Mana(out, this.aiPlayer);
         }
     }
 
@@ -585,8 +650,10 @@ public class GameState {
         try {
             Field field = card.getClass().getField("manacost");
             Object value = field.get(card);
-            if (value instanceof Number)  return ((Number) value).intValue();
-        } catch (Exception ignored) {}
+            if (value instanceof Number)
+                return ((Number) value).intValue();
+        } catch (Exception ignored) {
+        }
 
         return Integer.MAX_VALUE;
     }
@@ -615,6 +682,171 @@ public class GameState {
         }
 
         return "";
+    }
+
+    // Searchinging random adjacent free tile
+    public Tile getRandomAdjacentFreeTile(Tile tile) {
+        if (tile == null)
+            return null;
+        int tx = tile.getTilex();
+        int ty = tile.getTiley();
+
+        List<Tile> freeTiles = new ArrayList<>();
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                if (dx == 0 && dy == 0)
+                    continue;
+                int nx = tx + dx;
+                int ny = ty + dy;
+                if (!isWithinBoard(nx, ny))
+                    continue;
+                if (isTileFree(nx, ny)) {
+                    freeTiles.add(board[nx][ny]);
+                }
+            }
+        }
+        if (freeTiles.isEmpty())
+            return null;
+        return freeTiles.get((int) (Math.random() * freeTiles.size()));
+    }
+
+    // Wraithling spawn helper
+    public void spawnWraithling(ActorRef out, Tile tile, boolean isHuman) {
+        if (tile == null)
+            return;
+        Unit wraithling = utils.BasicObjectBuilders.loadUnit(
+                utils.StaticConfFiles.wraithling, nextUnitId++, Unit.class);
+        tile.setUnit(wraithling);
+        wraithling.setPositionByTile(tile);
+
+        if (isHuman) {
+            humanUnits.add(wraithling);
+        } else {
+            aiUnits.add(wraithling);
+        }
+
+        unitNames.put(wraithling, "wraithling");
+        setUnitHealth(wraithling, 1);
+        setUnitAttack(wraithling, 1);
+
+        if (out != null) {
+            commands.BasicCommands.drawUnit(out, wraithling, tile);
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            commands.BasicCommands.setUnitHealth(out, wraithling, 1);
+            commands.BasicCommands.setUnitAttack(out, wraithling, 1);
+        }
+    }
+
+    // Deathwatch will be triggered whenev any unit dies
+    public void triggerDeathwatch(ActorRef out) {
+        List<Unit> snapshot = new ArrayList<>(humanUnits); // copying human units to avoid concurrent modification
+        for (Unit unit : snapshot) {
+            String name = getUnitName(unit);
+            if (name.isEmpty())
+                continue;
+
+            if ("bad_omen".equalsIgnoreCase(name)) {
+                // +1 attack permanently
+                int newAtk = getUnitAttack(unit) + 1;
+                setUnitAttack(unit, newAtk);
+                if (out != null) {
+                    commands.BasicCommands.setUnitAttack(out, unit, newAtk);
+                }
+                System.out.println("[DEATHWATCH] Bad Omen +1 attack → " + newAtk);
+
+            } else if ("shadow_watcher".equalsIgnoreCase(name)) {
+                System.out.println("[DEBUG] Shadow Watcher triggered id=" + unit.getId());
+                // +1 attack +1 health permanently
+                int newAtk = getUnitAttack(unit) + 1;
+                int newHp = getUnitHealth(unit) + 1;
+                setUnitAttack(unit, newAtk);
+                setUnitHealth(unit, newHp);
+                if (out != null) {
+                    commands.BasicCommands.setUnitHealth(out, unit, newHp);
+                    // adding this for shadow wather health to update after to display ability
+                    // benifits of any unit death
+                    try {
+                        Thread.sleep(50);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    commands.BasicCommands.setUnitAttack(out, unit, newAtk);
+                    // commands.BasicCommands.setUnitHealth(out, unit, newHp);
+                }
+                System.out.println("[DEATHWATCH] Shadow Watcher +1/+1");
+
+            } else if ("bloodmoon_priestess".equalsIgnoreCase(name)) {
+                // Wraithling summon on random adjacent free tile
+                Tile unitTile = findTileContainingUnit(unit);
+                if (unitTile == null)
+                    continue;
+                Tile spawnTile = getRandomAdjacentFreeTile(unitTile);
+                if (spawnTile == null)
+                    continue;
+                spawnWraithling(out, spawnTile, true); // true = human
+                System.out.println("[DEATHWATCH] Bloodmoon Priestess spawned Wraithling");
+
+            } else if ("shadowdancer".equalsIgnoreCase(name)) {
+                System.out.println("[DEBUG] Shadowdancer triggered id=" + unit.getId());
+                // 1 damage to enemy avatar + heal self 1
+                int aiHp = aiPlayer.getHealth() - 1;
+                aiPlayer.setHealth(aiHp);
+
+                int selfHp = humanPlayer.getHealth() + 1;
+                humanPlayer.setHealth(selfHp);
+
+                if (out != null) {
+                    commands.BasicCommands.setUnitHealth(out, aiAvatar, aiHp);
+                    commands.BasicCommands.setUnitHealth(out, humanAvatar, selfHp);
+                    syncPlayerStatsUI(out);
+                }
+                System.out.println("[DEATHWATCH] Shadowdancer 1 dmg AI + 1 heal human");
+
+                // Win condition check
+                if (aiHp <= 0) {
+                    endGame(out, "You Win!");
+                    return;
+                }
+            }
+        }
+    }
+
+    public void endGame(ActorRef out, String message) {
+        if (out != null) {
+            BasicCommands.addPlayer1Notification(out, message, 5);
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        // Remove all units from board
+        for (int x = 0; x < 9; x++) {
+            for (int y = 0; y < 5; y++) {
+                Tile t = board[x][y];
+                if (t != null && t.getUnit() != null) {
+                    if (out != null) {
+                        BasicCommands.deleteUnit(out, t.getUnit());
+                    }
+                    t.setUnit(null);
+                }
+            }
+        }
+
+        // Clear all highlights
+        clearAllHighlights(out);
+
+        // Game lock
+        gameInitalised = false;
+
+        if (out != null) {
+            BasicCommands.addPlayer1Notification(out, "Refresh to play again!", 5);
+        }
     }
 
     public String buildUnitConfigPath(Card card) {

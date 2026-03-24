@@ -103,6 +103,13 @@ public class TileClicked implements EventProcessor {
                     if (out != null) {
                         BasicCommands.deleteUnit(out, targetUnit);
                     }
+
+                    // SC-WIN: Dark Terminus destroys AI avatar thus HUMAN WINS
+                    if (targetUnit == gameState.aiAvatar) {
+                        BasicCommands.addPlayer1Notification(out, "You Win!", 5);
+                        gameState.gameInitalised = false;
+                        return;
+                    }
                 } else if ("True Strike".equalsIgnoreCase(spellName)) {
                     int newHp = gameState.damageTarget(targetUnit, 2);
                     if (newHp <= 0) {
@@ -121,10 +128,17 @@ public class TileClicked implements EventProcessor {
                         if (out != null) {
                             BasicCommands.deleteUnit(out, targetUnit);
                         }
+
+                        // SC-WIN: True Strike destroys AI avatar - HUMAN WINS
+                        if (targetUnit == gameState.aiAvatar) {
+                            BasicCommands.addPlayer1Notification(out, "You Win!", 5);
+                            gameState.gameInitalised = false;
+                            return;
+                        }
                     }
 
                 } else if ("Sundrop Elixir".equalsIgnoreCase(spellName)) {
-                    gameState.healTarget(targetUnit, 4);
+                    gameState.healTarget(targetUnit, 5);
 
                 } else {
                     if (out != null) {
@@ -382,6 +396,10 @@ public class TileClicked implements EventProcessor {
                             }
 
                             BasicCommands.deleteUnit(out, defender);
+                            // Game Over: AI avatar defeated — human wins, lock the game
+                            BasicCommands.addPlayer1Notification(out, "You Win!", 5);
+                            gameState.gameInitalised = false;
+                            return;
                         }
 
                         Tile defenderTile = gameState.findTileContainingUnit(defender);
@@ -452,6 +470,14 @@ public class TileClicked implements EventProcessor {
                             gameState.syncPlayerStatsUI(out);
                             BasicCommands.setUnitHealth(out, attacker, gameState.humanPlayer.getHealth());
                             BasicCommands.setUnitAttack(out, attacker, gameState.getUnitAttack(attacker));
+
+                            // Game Over: Human avatar defeated by counter-attack — human loses, lock the
+                            // game
+                            if (attackerHealth <= 0) {
+                                BasicCommands.addPlayer1Notification(out, "You Lose!", 5);
+                                gameState.gameInitalised = false;
+                                return;
+                            }
                         }
                     } else {
                         if (attackerHealth <= 0) {

@@ -134,6 +134,14 @@ public class TileClicked implements EventProcessor {
                     // sync avatar/player HP if avatar was target
                     gameState.syncPlayerStatsUI(out);
 
+					if (checkGameOver(out, gameState)) {
+					    gameState.clearCardSelection(out);
+					    gameState.clearMoveTileHighlights(out);
+					    gameState.selectedUnit = null;
+					    gameState.actionSeq++;
+					    return;
+					}
+
 					//updating health stats after spell and attack
 					if (out != null) {
 						if (targetUnit == gameState.humanAvatar) {
@@ -378,7 +386,13 @@ public class TileClicked implements EventProcessor {
 					}
 				}
 			}
-			
+			if (checkGameOver(out, gameState)) {
+			    gameState.markUnitAsAttacked(attacker);
+			    gameState.clearMoveTileHighlights(out);
+			    gameState.selectedUnit = null;
+			    gameState.actionSeq++;
+			    return;
+			}
 			boolean defenderAlive = false;
 			if (defender == gameState.aiAvatar) {
 			    defenderAlive = gameState.aiPlayer.getHealth() > 0;
@@ -386,8 +400,7 @@ public class TileClicked implements EventProcessor {
 			    defenderAlive = gameState.getUnitHealth(defender) > 0;
 			}
 			
-			// if (defenderAlive && !defender.hasCounterAttacked()) {
-				if (defenderAlive ) {
+			    if (defenderAlive && !defender.hasCounterAttacked()) {
 			    int defenderDamage = gameState.getUnitAttack(defender);
 			    int attackerHealth = gameState.getUnitHealth(attacker) - defenderDamage;
 			
@@ -403,6 +416,13 @@ public class TileClicked implements EventProcessor {
 			            BasicCommands.setUnitHealth(out, attacker, gameState.humanPlayer.getHealth());
 			            BasicCommands.setUnitAttack(out, attacker, gameState.getUnitAttack(attacker));
 			        }
+					    if (checkGameOver(out, gameState)) {
+					        gameState.markUnitAsAttacked(attacker);
+					        gameState.clearMoveTileHighlights(out);
+					        gameState.selectedUnit = null;
+					        gameState.actionSeq++;
+					        return;
+				    }
 			    } else {
 					if (attackerHealth <= 0) {
 						gameState.setUnitHealth(attacker, 0);
@@ -426,7 +446,7 @@ public class TileClicked implements EventProcessor {
 					}
 				}
 			
-			    // defender.setHasCounterAttacked(true);
+			    defender.setHasCounterAttacked(true);
 			}
 			gameState.markUnitAsAttacked(attacker);
             gameState.clearMoveTileHighlights(out);
@@ -449,4 +469,23 @@ public class TileClicked implements EventProcessor {
         gameState.clearMoveTileHighlights(out);
         gameState.selectedUnit = null;
     }
+	private boolean checkGameOver(ActorRef out, GameState gameState) {
+    if (gameState.humanPlayer.getHealth() <= 0) {
+        if (out != null) {
+            BasicCommands.addPlayer1Notification(out, "Game Over - AI Wins!", 5);
+        }
+        gameState.humanTurn = false;
+        return true;
+    }
+
+    if (gameState.aiPlayer.getHealth() <= 0) {
+        if (out != null) {
+            BasicCommands.addPlayer1Notification(out, "Game Over - You Win!", 5);
+        }
+        gameState.humanTurn = false;
+        return true;
+    }
+
+    return false;
+}
 }

@@ -39,6 +39,7 @@ public class GameState {
     public Map<Unit, Integer> unitHealth = new HashMap<>();
     public Map<Unit, Integer> unitAttack = new HashMap<>();
     public Map<Unit, Boolean> unitHasAttackedThisTurn = new HashMap<>();
+    public Map<Unit, Boolean> unitHasMovedThisTurn = new HashMap<>();
     // [SC-505] List to keep track of currently highlighted tiles on the board
     public List<Tile> highlightedTiles = new ArrayList<>();
 
@@ -150,16 +151,47 @@ public class GameState {
         for (int[] offset : offsets) {
             int nx = startX + offset[0];
             int ny = startY + offset[1];
-            if (isWithinBoard(nx, ny) && isTileFree(nx, ny)) {
-                Tile t = board[nx][ny];
-                
-                    BasicCommands.drawTile(out, t, 1);
-            
+            if (!isWithinBoard(nx, ny)) continue;
+        
+            Tile t = board[nx][ny];
+            if (t == null) continue;
+        
+            if (isTileFree(nx, ny)) {
+                BasicCommands.drawTile(out, t, 1); // grey- move tile
+                highlightedMoveTiles.add(t);
+            } else if (t.getUnit() != null && isEnemyUnit(t.getUnit())) {
+                BasicCommands.drawTile(out, t, 2); // red-  enemy in range
                 highlightedMoveTiles.add(t);
             }
         }
         System.out.println("[SC-302] Move tiles highlighted: " + highlightedMoveTiles.size()
                 + " from (" + startX + "," + startY + ")");
+    }
+
+    public int highlightValidAttackTiles(ActorRef out, Unit unit) {
+        Tile unitTile = findTileContainingUnit(unit);
+        if (unitTile == null) return 0;
+    
+        int ux = unitTile.getTilex();
+        int uy = unitTile.getTiley();
+        int count = 0;
+    
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                if (dx == 0 && dy == 0) continue;
+                int nx = ux + dx;
+                int ny = uy + dy;
+                if (!isWithinBoard(nx, ny)) continue;
+    
+                Tile t = board[nx][ny];
+                if (t != null && t.getUnit() != null && isEnemyUnit(t.getUnit())) {
+                    BasicCommands.drawTile(out, t, 2); //only red for enemy tile
+                    highlightedMoveTiles.add(t);
+                    count++;
+                }
+            }
+        }
+        return count;
     }
 
     // Clear only movement range highlights 
@@ -463,9 +495,19 @@ public class GameState {
         }
     }
     
+    public boolean hasUnitMoved(Unit unit) {
+        return Boolean.TRUE.equals(unitHasMovedThisTurn.get(unit));
+    }
+    
+    public void markUnitAsMoved(Unit unit) {
+        if (unit != null) unitHasMovedThisTurn.put(unit, true);
+    }
+
     public void resetUnitAttackFlags() {
         unitHasAttackedThisTurn.clear();
+        unitHasMovedThisTurn.clear(); 
     }
+
     // Clears BOTH move and summon highlights + resets unit/card selection
     public void clearAllHighlights(ActorRef out) {
         clearMoveTileHighlights(out);

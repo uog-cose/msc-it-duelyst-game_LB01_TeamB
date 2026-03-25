@@ -161,6 +161,14 @@ public class GameState {
             if (!isWithinBoard(nx, ny))
                 continue;
 
+            // 2-step cardinal move for intermediate tile check
+            if (Math.abs(offset[0]) == 2 || Math.abs(offset[1]) == 2) {
+                int midX = startX + offset[0] / 2;
+                int midY = startY + offset[1] / 2;
+                if (!isTileFree(midX, midY))
+                    continue; // intermediate blocked- skip
+            }
+
             Tile t = board[nx][ny];
             if (t == null)
                 continue;
@@ -168,6 +176,27 @@ public class GameState {
             if (isTileFree(nx, ny)) {
                 BasicCommands.drawTile(out, t, 1); // grey- move tile
                 highlightedMoveTiles.add(t);
+                // Adding is move tile's adjacent enemies should also be highlighted in red
+                for (int dx = -1; dx <= 1; dx++) {
+                    for (int dy = -1; dy <= 1; dy++) {
+                        if (dx == 0 && dy == 0)
+                            continue;
+                        int ex = nx + dx;
+                        int ey = ny + dy;
+                        if (!isWithinBoard(ex, ey))
+                            continue;
+                        Tile et = board[ex][ey];
+                        if (et == null || et.getUnit() == null)
+                            continue;
+                        if (!isEnemyUnit(et.getUnit()))
+                            continue;
+                        // already highlighted check
+                        if (!highlightedMoveTiles.contains(et)) {
+                            BasicCommands.drawTile(out, et, 2); // red
+                            highlightedMoveTiles.add(et);
+                        }
+                    }
+                }
             } else if (t.getUnit() != null && isEnemyUnit(t.getUnit())) {
                 BasicCommands.drawTile(out, t, 2); // red- enemy in range
                 highlightedMoveTiles.add(t);

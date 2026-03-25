@@ -745,6 +745,39 @@ public class GameState {
         }
     }
 
+    public void castWraithlingSwarm(ActorRef out) {
+        int summoned = 0;
+        
+        // Priority: avatar's adjacent tiles first then units, to maximize chances of summoning if space is tight
+        List<Unit> friendlies = new ArrayList<>(humanUnits);
+        friendlies.add(0, humanAvatar); // avatar pehle check ho
+        
+        outer:
+        for (Unit friendly : friendlies) {
+            Tile ft = findTileContainingUnit(friendly);
+            if (ft == null) continue;
+            
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    if (summoned >= 3) break outer;
+                    if (dx == 0 && dy == 0) continue;
+                    int nx = ft.getTilex() + dx;
+                    int ny = ft.getTiley() + dy;
+                    if (!isWithinBoard(nx, ny)) continue;
+                    if (!isTileFree(nx, ny)) continue;
+                    
+                    spawnWraithling(out, board[nx][ny], true);
+                    summoned++;
+                }
+            }
+        }
+    
+        if (summoned == 0 && out != null) {
+            commands.BasicCommands.addPlayer1Notification(out, "No space for Wraithlings!", 2);
+        }
+        System.out.println("[WRAITHLING SWARM] spawned " + summoned + " wraithlings");
+    }
+
     // Deathwatch will be triggered whenev any unit dies
     public void triggerDeathwatch(ActorRef out) {
         List<Unit> snapshot = new ArrayList<>(humanUnits); // copying human units to avoid concurrent modification

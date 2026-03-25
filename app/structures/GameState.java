@@ -42,6 +42,7 @@ public class GameState {
     public Map<Unit, Boolean> unitHasAttackedThisTurn = new HashMap<>();
     public Map<Unit, Boolean> unitHasMovedThisTurn = new HashMap<>();
     public Map<Unit, String> unitNames = new HashMap<>();
+    public Map<Unit, Integer> unitMaxHealth = new HashMap<>();
     // [SC-505] List to keep track of currently highlighted tiles on the board
     public List<Tile> highlightedTiles = new ArrayList<>();
 
@@ -93,6 +94,7 @@ public class GameState {
         unitAttack.clear();
         unitHasAttackedThisTurn.clear();
         unitNames.clear();
+        unitMaxHealth.clear();
 
         selectedUnit = null;
         selectedCard = null;
@@ -387,6 +389,8 @@ public class GameState {
     public void setUnitHealth(Unit unit, int hp) {
         if (unit != null) {
             unitHealth.put(unit, hp);
+            // setting max health for 1st attempt
+            unitMaxHealth.putIfAbsent(unit, hp);
         }
     }
 
@@ -741,7 +745,45 @@ public class GameState {
         }
     }
 
-    // Deathwatch will be triggered whenev any unit dies
+    public void castWraithlingSwarm(ActorRef out) {
+        int summoned = 0;
+
+        // Priority: avatar's adjacent tiles first then units, to maximize chances of
+        // summoning if space is tight
+        List<Unit> friendlies = new ArrayList<>(humanUnits);
+        friendlies.add(0, humanAvatar); // avatar pehle check ho
+
+        outer: for (Unit friendly : friendlies) {
+            Tile ft = findTileContainingUnit(friendly);
+            if (ft == null)
+                continue;
+
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    if (summoned >= 3)
+                        break outer;
+                    if (dx == 0 && dy == 0)
+                        continue;
+                    int nx = ft.getTilex() + dx;
+                    int ny = ft.getTiley() + dy;
+                    if (!isWithinBoard(nx, ny))
+                        continue;
+                    if (!isTileFree(nx, ny))
+                        continue;
+
+                    spawnWraithling(out, board[nx][ny], true);
+                    summoned++;
+                }
+            }
+        }
+
+        if (summoned == 0 && out != null) {
+            commands.BasicCommands.addPlayer1Notification(out, "No space for Wraithlings!", 2);
+        }
+        System.out.println("[WRAITHLING SWARM] spawned " + summoned + " wraithlings");
+    }
+
+    // Deathwatch will be triggered whenever any unit dies
     public void triggerDeathwatch(ActorRef out) {
         List<Unit> snapshot = new ArrayList<>(humanUnits); // copying human units to avoid concurrent modification
         for (Unit unit : snapshot) {
@@ -811,6 +853,139 @@ public class GameState {
                     endGame(out, "You Win!");
                     return;
                 }
+            }
+        }
+    }
+
+    public void triggerOpeningGambit(ActorRef out, Unit summoned, Tile summonedTile, boolean isHuman) {
+        String name = getUnitName(summoned);
+        if (name.isEmpty())
+            return;
+
+        if ("gloom_chaser".equalsIgnoreCase(name)) {
+            // Wraithling summon directly behind (x-1 for human, x+1 for AI)
+            int behindX = isHuman ? summonedTile.getTilex() - 1 : summonedTile.getTilex() + 1;
+            int behindY = summonedTile.getTiley();
+
+            if (isWithinBoard(behindX, behindY) && isTileFree(behindX, behindY)) {
+                spawnWraithling(out, board[behindX][behindY], isHuman);
+                System.out.println("OPENING GAMBIT Gloom Chaser spawned Wraithling behind");
+            } else {
+                System.out.println("OPENING GAMBIT Gloom Chaser: space occupied, no effect");
+            }
+
+        } else if ("nightsorrow_assassin".equalsIgnoreCase(name)) {
+            // Destroy adjacent enemy unit that is below max health
+            int tx = summonedTile.getTilex();
+            int ty = summonedTile.getTiley();
+
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    if (dx == 0 && dy == 0)
+                        continue;
+                    int nx = tx + dx;
+                    int ny = ty + dy;
+                    if (!isWithinBoard(nx, ny))
+                        continue;
+
+                    Tile t = board[nx][ny];
+                    if (t == null || t.getUnit() == null)
+                        continue;
+
+                    Unit target = t.getUnit();
+                    boolean isEnemy = isHuman
+                            ? (target == aiAvatar || aiUnits.contains(target))
+                            : (target == humanAvatar || humanUnits.contains(target));
+
+                    if (!isEnemy)
+                        continue;
+
+                    // Check if below max health
+                    int currentHp = getUnitHealth(target);
+                    int maxHp = unitMaxHealth.getOrDefault(target, currentHp);
+
+                    if (currentHp < maxHp) {
+                        if (out != null) {
+                            commands.BasicCommands.playUnitAnimation(out, target,
+                                    structures.basic.UnitAnimationType.death);
+                            try {
+                                Thread.sleep(100);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                            commands.BasicCommands.deleteUnit(out, target);
+                        }
+                        removeUnitFromBoard(target, out);
+                        System.out.println("OPENING GAMBIT, Nightsorrow Assassin destroyed damaged enemy");
+                        return; // destroy only one unit
+                    }
+                }
+            }
+            System.out.println("OPENING GAMBIT, Nightsorrow Assassin: no damaged enemy adjacent");
+        } else if ("silverguard_squire".equalsIgnoreCase(name)) {
+            // +1/+1 to adjacent allied unit directly in front or behind owning avatar
+            Unit ownerAvatar = isHuman ? humanAvatar : aiAvatar;
+            Tile avatarTile = findTileContainingUnit(ownerAvatar);
+            if (avatarTile == null)
+                return;
+
+            int ax = avatarTile.getTilex();
+            int ay = avatarTile.getTiley();
+
+            // front (left) aur behind (right) check karo
+            int[] checkX = { ax - 1, ax + 1 };
+
+            for (int nx : checkX) {
+                if (!isWithinBoard(nx, ay))
+                    continue;
+                Tile t = board[nx][ay];
+                if (t == null || t.getUnit() == null)
+                    continue;
+
+                Unit target = t.getUnit();
+                // sirf allied units — avatar nahi
+                boolean isAlly = isHuman
+                        ? humanUnits.contains(target)
+                        : aiUnits.contains(target);
+
+                if (!isAlly)
+                    continue;
+
+                // +1 attack +1 health permanently
+                int newAtk = getUnitAttack(target) + 1;
+                int newHp = getUnitHealth(target) + 1;
+                // max health bhi update karo
+                unitMaxHealth.put(target, unitMaxHealth.getOrDefault(target, newHp - 1) + 1);
+                setUnitAttack(target, newAtk);
+                setUnitHealth(target, newHp);
+
+                if (out != null) {
+                    commands.BasicCommands.setUnitAttack(out, target, newAtk);
+                    try {
+                        Thread.sleep(50);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    commands.BasicCommands.setUnitHealth(out, target, newHp);
+                }
+                System.out.println("OPENING GAMBIT Silverguard Squire +1/+1 to "
+                        + getUnitName(target));
+            }
+        }
+    }
+
+    // Zeal: When AI avatar takes damage , Silverguard Knight gets +2 attack
+    public void triggerZeal(ActorRef out) {
+        List<Unit> snapshot = new ArrayList<>(aiUnits);
+        for (Unit unit : snapshot) {
+            String name = getUnitName(unit);
+            if ("silverguard_knight".equalsIgnoreCase(name)) {
+                int newAtk = getUnitAttack(unit) + 2;
+                setUnitAttack(unit, newAtk);
+                if (out != null) {
+                    commands.BasicCommands.setUnitAttack(out, unit, newAtk);
+                }
+                System.out.println("ZEAL Silverguard Knight +2 attack ->" + newAtk);
             }
         }
     }

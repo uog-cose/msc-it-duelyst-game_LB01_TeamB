@@ -259,6 +259,9 @@ public class TileClicked implements EventProcessor {
                             .replaceAll("[^a-z0-9]+", "_")
                             .replaceAll("^_+|_+$", ""));
 
+            // Adding Opening Gambit trigger
+            gameState.triggerOpeningGambit(out, summonedUnit, targetTile, true);
+
             // to handle play spell health
             int summonedHp = gameState.getCardHealth(gameState.selectedCard);
             gameState.setUnitHealth(summonedUnit, summonedHp);
@@ -427,7 +430,6 @@ public class TileClicked implements EventProcessor {
                             } catch (InterruptedException e) {
                                 e.printStackTrace();
                             }
-
                             BasicCommands.deleteUnit(out, defender);
                             // Game Over: AI avatar defeated — human wins, lock the game
                             BasicCommands.addPlayer1Notification(out, "You Win!", 5);
@@ -453,6 +455,8 @@ public class TileClicked implements EventProcessor {
                             BasicCommands.setUnitHealth(out, defender, gameState.aiPlayer.getHealth());
                             BasicCommands.setUnitAttack(out, defender, gameState.getUnitAttack(defender));
                         }
+                        // Zeal trigger, avatar damaged but alive
+                        gameState.triggerZeal(out);
                     }
                 } else {
                     if (defenderHealth <= 0) {

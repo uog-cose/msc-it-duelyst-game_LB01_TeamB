@@ -13,6 +13,8 @@ import structures.basic.Tile;
 import structures.basic.Unit;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * This class can be used to hold information about the on-going game.
@@ -49,6 +51,9 @@ public class GameState {
     // Units currently owned by each side (excluding avatars)
     public List<Unit> humanUnits = new ArrayList<>();
     public List<Unit> aiUnits = new ArrayList<>();
+
+    public Set<Unit> summonedThisTurn = new HashSet<>();
+    public Set<Unit> rushUnits = new HashSet<>();
 
     // Card-play state used for SC-201 / SC-205
     public Card selectedCard = null;
@@ -625,6 +630,142 @@ public class GameState {
         for (int i = 0; i < humanPlayer.hand.size() && i < 6; i++) {
             BasicCommands.drawCard(out, humanPlayer.hand.get(i), i + 1, 0);
         }
+    }
+
+    public static class ValidationResult {
+        public final boolean valid;
+        public final String message;
+
+        private ValidationResult(boolean valid, String message) {
+            this.valid = valid;
+            this.message = message;
+        }
+
+        public static ValidationResult ok() {
+            return new ValidationResult(true, "");
+        }
+
+        public static ValidationResult fail(String message) {
+            return new ValidationResult(false, message);
+        }
+    }
+
+    public boolean unitHasRush(Unit unit) {
+        return unit != null && rushUnits.contains(unit);
+    }
+
+    public boolean isSummoningSick(Unit unit) {
+        return unit != null && summonedThisTurn.contains(unit) && !unitHasRush(unit);
+    }
+
+    public void registerSummonedUnit(Unit unit, Card sourceCard) {
+        if (unit == null) {
+            return;
+        }
+        summonedThisTurn.add(unit);
+
+        String name = getCardName(sourceCard);
+        if ("Saberspine Tiger".equalsIgnoreCase(name)) {
+            rushUnits.add(unit);
+        }
+    }
+
+    public void clearSummoningSicknessForCurrentPlayer() {
+        if (humanTurn) {
+            summonedThisTurn.removeAll(new ArrayList<>(humanUnits));
+        } else {
+            summonedThisTurn.removeAll(new ArrayList<>(aiUnits));
+        }
+    }
+
+    public ValidationResult validateSummonTarget(Card card, int tilex, int tiley, boolean highlighted) {
+        if (!gameInitalised || !humanTurn) {
+            return ValidationResult.fail("Not your turn");
+        }
+        if (card == null) {
+            return ValidationResult.fail("No card selected");
+        }
+        if (!isWithinBoard(tilex, tiley)) {
+            return ValidationResult.fail("Invalid target");
+        }
+        if (!highlighted || !isTileFree(tilex, tiley)) {
+            return ValidationResult.fail("Invalid target");
+        }
+        if (getCardManaCost(card) > humanPlayer.getMana()) {
+            return ValidationResult.fail("Not enough mana");
+        }
+        return ValidationResult.ok();
+    }
+
+    public ValidationResult validateSpellTarget(Card card, int tilex, int tiley, boolean highlighted) {
+        if (!gameInitalised || !humanTurn) {
+            return ValidationResult.fail("Not your turn");
+        }
+        if (card == null) {
+            return ValidationResult.fail("No card selected");
+        }
+        if (!isWithinBoard(tilex, tiley)) {
+            return ValidationResult.fail("Invalid target");
+        }
+        if (!highlighted) {
+            return ValidationResult.fail("Invalid target");
+        }
+        Tile tile = getTile(tilex, tiley);
+        if (tile == null || tile.getUnit() == null) {
+            return ValidationResult.fail("Invalid target");
+        }
+        if (getCardManaCost(card) > humanPlayer.getMana()) {
+            return ValidationResult.fail("Not enough mana");
+        }
+        return ValidationResult.ok();
+    }
+
+    public ValidationResult validateMove(Unit unit, int tilex, int tiley) {
+        if (!gameInitalised || !humanTurn) {
+            return ValidationResult.fail("Not your turn");
+        }
+        if (unit == null) {
+            return ValidationResult.fail("No unit selected");
+        }
+        if (unit != humanAvatar && !humanUnits.contains(unit)) {
+            return ValidationResult.fail("Invalid unit");
+        }
+        if (hasUnitAttacked(unit)) {
+            return ValidationResult.fail("This unit cannot move after attacking");
+        }
+        if (hasUnitMoved(unit)) {
+            return ValidationResult.fail("Unit already moved");
+        }
+        if (isSummoningSick(unit)) {
+            return ValidationResult.fail("This unit cannot act on the turn it is summoned");
+        }
+        Tile tile = getTile(tilex, tiley);
+        if (tile == null || tile.getUnit() != null || !isHighlightedMoveTile(tilex, tiley)) {
+            return ValidationResult.fail("Invalid target");
+        }
+        return ValidationResult.ok();
+    }
+
+    public ValidationResult validateAttack(Unit attacker, Unit defender) {
+        if (!gameInitalised || !humanTurn) {
+            return ValidationResult.fail("Not your turn");
+        }
+        if (attacker == null || defender == null) {
+            return ValidationResult.fail("Invalid target");
+        }
+        if (attacker != humanAvatar && !humanUnits.contains(attacker)) {
+            return ValidationResult.fail("Invalid unit");
+        }
+        if (!isEnemyUnit(defender)) {
+            return ValidationResult.fail("Invalid target");
+        }
+        if (hasUnitAttacked(attacker)) {
+            return ValidationResult.fail("Unit already attacked!");
+        }
+        if (isSummoningSick(attacker)) {
+            return ValidationResult.fail("This unit cannot act on the turn it is summoned");
+        }
+        return ValidationResult.ok();
     }
 
     public boolean isSpellCard(Card card) {

@@ -177,17 +177,19 @@ public class InitalizationTest {
 		assertEquals(0, gameState.aiPlayer.getMana());
 		assertEquals(1, gameState.turnNumber);
 
-		// FIRST end turn → AI turn
-		end.processEvent(null, gameState, null);
-		assertFalse(gameState.humanTurn);
-		assertEquals(2, gameState.aiPlayer.getMana());
-		assertEquals(1, gameState.turnNumber);
+        // FIRST end turn -> AI takes its turn immediately and control returns to human
+        end.processEvent(null, gameState, null);
+        assertTrue(gameState.humanTurn);
+        // AI starts its turn with 2 mana, but may spend mana during the AI turn
+        assertEquals(1, gameState.aiPlayer.getMana());
+        assertEquals(2, gameState.turnNumber);
+        assertEquals(3, gameState.humanPlayer.getMana());
 
-		// SECOND end turn → back to human
-		end.processEvent(null, gameState, null);
-		assertTrue(gameState.humanTurn);
-		assertEquals(2, gameState.turnNumber);
-		assertEquals(3, gameState.humanPlayer.getMana());
+        // SECOND end turn -> AI again completes its turn and control returns to human
+        end.processEvent(null, gameState, null);
+        assertTrue(gameState.humanTurn);
+        assertEquals(3, gameState.turnNumber);
+        assertEquals(4, gameState.humanPlayer.getMana());
 
 		// SC-504: Mana invariant tests
 

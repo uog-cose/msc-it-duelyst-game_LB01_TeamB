@@ -62,6 +62,8 @@ public class EndTurnClicked implements EventProcessor {
 		// SC-502: sequential event marker
 		gameState.actionSeq++;
 
+        gameState.clearSummoningSicknessForCurrentPlayer();
+
 		// SC-105: switch active player
 		gameState.humanTurn = !gameState.humanTurn;
 

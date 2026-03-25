@@ -8,12 +8,13 @@ import structures.GameState;
 import structures.basic.Card;
 
 /**
- * Indicates that the user has clicked an object on the game canvas, in this case a card.
+ * Indicates that the user has clicked an object on the game canvas, in this
+ * case a card.
  * The event returns the position in the player's hand the card resides within.
  *
  * {
- *   messageType = “cardClicked”
- *   position = <hand index position [1-6]>
+ * messageType = “cardClicked”
+ * position = <hand index position [1-6]>
  * }
  *
  * @author Dr. Richard McCreadie
@@ -52,31 +53,43 @@ public class CardClicked implements EventProcessor {
             return;
         }
 
-         // Switching to a new card to clear everything first
+        // Switching to a new card to clear everything first
         gameState.clearCardSelection(out);
 
-          // Also clear any movement highlights (unit and card selection are mutually exclusive)
-          gameState.clearMoveTileHighlights(out);
-          gameState.selectedUnit = null;
+        // Also clear any movement highlights (unit and card selection are mutually
+        // exclusive)
+        gameState.clearMoveTileHighlights(out);
+        gameState.selectedUnit = null;
 
-          if (gameState.isSpellCard(clickedCard)) {
+        if (gameState.isSpellCard(clickedCard)) {
             if (manaCost > gameState.humanPlayer.getMana()) {
                 if (out != null) {
                     BasicCommands.addPlayer1Notification(out, "Not enough mana", 2);
                 }
                 return;
             }
-        
+
+            // A Wraithling Swarm, no target needed, cast directly
+            if ("Wraithling Swarm".equalsIgnoreCase(gameState.getCardName(clickedCard))) {
+                gameState.humanPlayer.setMana(gameState.humanPlayer.getMana() - manaCost);
+                if (out != null)
+                    BasicCommands.setPlayer1Mana(out, gameState.humanPlayer);
+                gameState.castWraithlingSwarm(out);
+                gameState.humanPlayer.hand.remove(handPosition - 1);
+                gameState.refreshHumanHandUI(out);
+                return;
+            }
+
             gameState.selectedCard = clickedCard;
             gameState.selectedHandPosition = handPosition;
-        
+
             if (out != null) {
                 BasicCommands.drawCard(out, clickedCard, handPosition, 1);
             }
-        
+
             int validTargetCount = gameState.highlightValidSpellTargets(out, clickedCard);
             System.out.println("[SPELL] validTargetCount=" + validTargetCount);
-        
+
             if (validTargetCount == 0) {
                 if (out != null) {
                     BasicCommands.addPlayer1Notification(out, "No valid spell targets", 2);
@@ -88,7 +101,7 @@ public class CardClicked implements EventProcessor {
 
         if (manaCost > gameState.humanPlayer.getMana()) {
             if (out != null) {
-            BasicCommands.addPlayer1Notification(out, "Not enough mana", 2);
+                BasicCommands.addPlayer1Notification(out, "Not enough mana", 2);
             }
             return;
         }
@@ -103,7 +116,7 @@ public class CardClicked implements EventProcessor {
 
         if (validTargetCount == 0) {
             if (out != null) {
-            BasicCommands.addPlayer1Notification(out, "No valid summon tiles", 2);
+                BasicCommands.addPlayer1Notification(out, "No valid summon tiles", 2);
             }
             gameState.clearCardSelection(out);
         }

@@ -86,7 +86,11 @@ public class AITurn {
                     }
                     gameState.aiPlayer.setMana(gameState.aiPlayer.getMana() - manaCost2);
                     gameState.aiPlayer.hand.remove(card);
-                    if (out != null) gameState.syncPlayerStatsUI(out);
+                    if (out != null) {
+                        BasicCommands.addPlayer1Notification(out, "Enemy cast True Strike!", 2);
+                        try { Thread.sleep(2000); } catch (InterruptedException e) { e.printStackTrace(); }
+                        gameState.syncPlayerStatsUI(out);
+                    }
                     System.out.println("AI SPELL True Strike cast");
             
                 } else if ("Sundrop Elixir".equalsIgnoreCase(spellName)) {
@@ -110,7 +114,11 @@ public class AITurn {
                     }
                     gameState.aiPlayer.setMana(gameState.aiPlayer.getMana() - manaCost2);
                     gameState.aiPlayer.hand.remove(card);
-                    if (out != null) gameState.syncPlayerStatsUI(out);
+                    if (out != null){
+                        BasicCommands.addPlayer1Notification(out, "Enemy cast Sundrop Elixir!", 2);
+                        try { Thread.sleep(2000); } catch (InterruptedException e) { e.printStackTrace(); }
+                        gameState.syncPlayerStatsUI(out);
+                    }
                     System.out.println("AI SPELL Sundrop Elixir cast");
                 }
                 continue; // spell processed, next card
@@ -142,6 +150,10 @@ public class AITurn {
                             .replace("'", "")
                             .replaceAll("[^a-z0-9]+", "_")
                             .replaceAll("^_+|_+$", ""));
+
+            //  Opening Gambit trigger for AI
+            gameState.triggerOpeningGambit(out, unit, summonTile, false); // false = AI
+
 
             int hp = gameState.getCardHealth(card);
             int atk = gameState.getCardAttack(card);

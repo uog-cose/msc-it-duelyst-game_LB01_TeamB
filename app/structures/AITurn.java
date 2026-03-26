@@ -156,6 +156,7 @@ public class AITurn {
             summonTile.setUnit(unit);
             unit.setPositionByTile(summonTile);
             gameState.aiUnits.add(unit);
+            gameState.registerSummonedUnit(unit, card);
 
             // Saving unit name for death watch
             gameState.unitNames.put(unit,
@@ -273,6 +274,9 @@ public class AITurn {
         toMove.add(gameState.aiAvatar);
 
         for (Unit unit : toMove) {
+            if (gameState.isSummoningSick(unit))
+                continue;
+
             if (gameState.hasUnitAttacked(unit))
                 continue;
 
@@ -408,6 +412,9 @@ public class AITurn {
         attackers.add(gameState.aiAvatar);
 
         for (Unit attacker : attackers) {
+            if (gameState.isSummoningSick(attacker))
+                continue;
+
             if (gameState.hasUnitAttacked(attacker))
                 continue;
 

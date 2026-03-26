@@ -60,32 +60,23 @@ public class TileClicked implements EventProcessor {
             if (gameState.isSpellCard(gameState.selectedCard)) {
 
                 boolean highlightedSpell = gameState.isHighlightedSpellTileByUiCoords(tilex, tiley);
-                if (!highlightedSpell) {
+                GameState.ValidationResult spellValidation = gameState.validateSpellTarget(
+                        gameState.selectedCard, tilex, tiley, highlightedSpell);
+
+                if (!spellValidation.valid) {
                     if (out != null) {
-                        BasicCommands.addPlayer1Notification(out, "Invalid target", 2);
+                        BasicCommands.addPlayer1Notification(out, spellValidation.message, 2);
+                    }
+                    if ("Not enough mana".equals(spellValidation.message)) {
+                        gameState.clearCardSelection(out);
                     }
                     return;
                 }
 
                 Tile targetTile = gameState.getTile(tilex, tiley);
-                if (targetTile == null || targetTile.getUnit() == null) {
-                    if (out != null) {
-                        BasicCommands.addPlayer1Notification(out, "Invalid target", 2);
-                    }
-                    return;
-                }
-
                 Unit targetUnit = targetTile.getUnit();
                 String spellName = gameState.getCardName(gameState.selectedCard);
                 int manaCost = gameState.getCardManaCost(gameState.selectedCard);
-
-                if (manaCost > gameState.humanPlayer.getMana()) {
-                    if (out != null) {
-                        BasicCommands.addPlayer1Notification(out, "Not enough mana", 2);
-                    }
-                    gameState.clearCardSelection(out);
-                    return;
-                }
 
                 if ("Dark Terminus".equalsIgnoreCase(spellName)) {
 
@@ -197,9 +188,9 @@ public class TileClicked implements EventProcessor {
                 }
 
                 gameState.humanPlayer.hand.remove(gameState.selectedHandPosition - 1);
-                gameState.refreshHumanHandUI(out);
 
                 gameState.clearCardSelection(out);
+                gameState.refreshHumanHandUI(out);
                 gameState.clearMoveTileHighlights(out);
                 gameState.selectedUnit = null;
                 gameState.actionSeq++;
@@ -209,29 +200,24 @@ public class TileClicked implements EventProcessor {
             }
 
             boolean highlighted = gameState.isHighlightedSummonTileByUiCoords(tilex, tiley);
-            boolean free = gameState.isTileFree(tilex, tiley);
+            GameState.ValidationResult summonValidation = gameState.validateSummonTarget(
+                    gameState.selectedCard, tilex, tiley, highlighted);
 
-            System.out.println("summon check — highlighted=" + highlighted + " free=" + free);
+            System.out.println("summon check — highlighted=" + highlighted + " free=" + gameState.isTileFree(tilex, tiley));
 
-            if (!highlighted || !free) {
-                System.out.println("[SC-205] invalid target: not highlighted or not free");
-                BasicCommands.addPlayer1Notification(out, "Invalid target", 2);
+            if (!summonValidation.valid) {
+                System.out.println("[SC-206] summon blocked: " + summonValidation.message);
+                if (out != null) {
+                    BasicCommands.addPlayer1Notification(out, summonValidation.message, 2);
+                }
+                if ("Not enough mana".equals(summonValidation.message)) {
+                    gameState.clearCardSelection(out);
+                }
                 return;
             }
 
             int manaCost = gameState.getCardManaCost(gameState.selectedCard);
-            if (manaCost > gameState.humanPlayer.getMana()) {
-                System.out.println("[SC-205] summon blocked: not enough mana");
-                BasicCommands.addPlayer1Notification(out, "Not enough mana", 2);
-                gameState.clearCardSelection(out);
-                return;
-            }
-
             Tile targetTile = gameState.getTile(tilex, tiley);
-            if (targetTile == null) {
-                BasicCommands.addPlayer1Notification(out, "Invalid target", 2);
-                return;
-            }
 
             String unitConfigPath = gameState.buildUnitConfigPath(gameState.selectedCard);
             System.out.println("[SC-201] loading unit from " + unitConfigPath);
@@ -250,6 +236,7 @@ public class TileClicked implements EventProcessor {
             targetTile.setUnit(summonedUnit);
             summonedUnit.setPositionByTile(targetTile);
             gameState.humanUnits.add(summonedUnit);
+            gameState.registerSummonedUnit(summonedUnit, gameState.selectedCard);
 
             // Saving unit name for deathwatch
             gameState.unitNames.put(summonedUnit,
@@ -283,9 +270,9 @@ public class TileClicked implements EventProcessor {
             }
 
             gameState.humanPlayer.hand.remove(gameState.selectedHandPosition - 1);
-            gameState.refreshHumanHandUI(out);
 
             gameState.clearCardSelection(out);
+            gameState.refreshHumanHandUI(out);
             gameState.clearMoveTileHighlights(out);
             gameState.selectedUnit = null;
             gameState.actionSeq++;
@@ -301,10 +288,12 @@ public class TileClicked implements EventProcessor {
         if (gameState.selectedUnit != null) {
             Tile clickedMoveTile = gameState.getTile(tilex, tiley);
 
-            if (clickedMoveTile != null
-                    && clickedMoveTile.getUnit() == null
-                    && gameState.isHighlightedMoveTile(tilex, tiley)) {
-
+            GameState.ValidationResult moveValidation = gameState.validateMove(gameState.selectedUnit, tilex, tiley);
+            if (!moveValidation.valid) {
+                if (clickedMoveTile != null && out != null && !"No unit selected".equals(moveValidation.message)) {
+                    BasicCommands.addPlayer1Notification(out, moveValidation.message, 2);
+                }
+            } else {
                 Tile currentTile = gameState.findTileContainingUnit(gameState.selectedUnit);
                 if (currentTile != null) {
                     currentTile.setUnit(null);
@@ -338,6 +327,16 @@ public class TileClicked implements EventProcessor {
                     || gameState.humanUnits.contains(clickedUnit);
 
             if (isFriendly) {
+                if (gameState.isSummoningSick(clickedUnit)) {
+                    System.out.println("[SC-401] summoning sickness blocks action");
+                    gameState.clearMoveTileHighlights(out);
+                    gameState.selectedUnit = null;
+
+                    if (out != null) {
+                        BasicCommands.addPlayer1Notification(out, "This unit cannot act on the turn it is summoned", 2);
+                    }
+                    return;
+                }
 
                 if (gameState.hasUnitAttacked(clickedUnit)) {
                     System.out.println("[SC-305] unit already attacked, movement blocked");
@@ -394,13 +393,17 @@ public class TileClicked implements EventProcessor {
             Unit attacker = gameState.selectedUnit;
             Unit defender = clickedTile.getUnit();
 
+            GameState.ValidationResult attackValidation = gameState.validateAttack(attacker, defender);
+            if (!attackValidation.valid) {
+                if (out != null) {
+                    BasicCommands.addPlayer1Notification(out, attackValidation.message, 2);
+                }
+                return;
+            }
+
             Tile attackerTile = gameState.findTileContainingUnit(attacker);
             if (attackerTile == null)
                 return;
-            if (gameState.hasUnitAttacked(attacker)) {
-                BasicCommands.addPlayer1Notification(out, "Unit already attacked!", 2);
-                return;
-            }
 
             int dx = Math.abs(attackerTile.getTilex() - tilex);
             int dy = Math.abs(attackerTile.getTiley() - tiley);

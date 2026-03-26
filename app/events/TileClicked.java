@@ -7,6 +7,7 @@ import commands.BasicCommands;
 import structures.CombatHandler;
 import structures.GameState;
 import structures.MovementEngine;
+import structures.SpellEngine;
 import structures.basic.Tile;
 import structures.basic.Unit;
 import utils.BasicObjectBuilders;
@@ -56,109 +57,149 @@ public class TileClicked implements EventProcessor {
             // --- Spell handling ---
             if (gameState.isSpellCard(gameState.selectedCard)) {
 
-                boolean highlightedSpell = gameState.isHighlightedSpellTileByUiCoords(tilex, tiley);
-                if (!highlightedSpell) {
-                    if (out != null) BasicCommands.addPlayer1Notification(out, "Invalid target", 2);
-                    return;
-                }
+    boolean highlightedSpell = gameState.isHighlightedSpellTileByUiCoords(tilex, tiley);
+    if (!highlightedSpell) {
+        if (out != null) BasicCommands.addPlayer1Notification(out, "Invalid target", 2);
+        return;
+    }
 
-                Tile targetTile = gameState.getTile(tilex, tiley);
-                if (targetTile == null || targetTile.getUnit() == null) {
-                    if (out != null) BasicCommands.addPlayer1Notification(out, "Invalid target", 2);
-                    return;
-                }
+    Tile targetTile = gameState.getTile(tilex, tiley);
+    if (targetTile == null || targetTile.getUnit() == null) {
+        if (out != null) BasicCommands.addPlayer1Notification(out, "Invalid target", 2);
+        return;
+    }
 
-                Unit targetUnit = targetTile.getUnit();
-                String spellName = gameState.getCardName(gameState.selectedCard);
-                int manaCost = gameState.getCardManaCost(gameState.selectedCard);
+    Unit targetUnit = targetTile.getUnit();
+    String spellName = gameState.getCardName(gameState.selectedCard);
+    int manaCost = gameState.getCardManaCost(gameState.selectedCard);
 
-                if (manaCost > gameState.humanPlayer.getMana()) {
-                    if (out != null) BasicCommands.addPlayer1Notification(out, "Not enough mana", 2);
-                    gameState.clearCardSelection(out);
-                    return;
-                }
+    if (manaCost > gameState.humanPlayer.getMana()) {
+        if (out != null) BasicCommands.addPlayer1Notification(out, "Not enough mana", 2);
+        gameState.clearCardSelection(out);
+        return;
+    }
 
-                if ("Dark Terminus".equalsIgnoreCase(spellName)) {
+    // Delegate effect to SpellEngine
+    SpellEngine.castSpell(out, gameState, spellName, targetUnit, targetTile);
 
-                    if (out != null) {
-                        BasicCommands.playUnitAnimation(out, targetUnit, structures.basic.UnitAnimationType.death);
-                        try { Thread.sleep(150); } catch (InterruptedException e) { e.printStackTrace(); }
-                    }
-                    gameState.removeUnitFromBoard(targetUnit, out);
-                    if (out != null) BasicCommands.deleteUnit(out, targetUnit);
+    // Routing concerns stay here
+    gameState.humanPlayer.setMana(gameState.humanPlayer.getMana() - manaCost);
+    if (out != null) BasicCommands.setPlayer1Mana(out, gameState.humanPlayer);
+    gameState.syncPlayerStatsUI(out);
+    gameState.humanPlayer.hand.remove(gameState.selectedHandPosition - 1);
+    gameState.refreshHumanHandUI(out);
+    gameState.clearCardSelection(out);
+    gameState.clearMoveTileHighlights(out);
+    gameState.selectedUnit = null;
+    gameState.actionSeq++;
+    System.out.println("[SPELL] cast: " + spellName + " at (" + tilex + "," + tiley + ")");
+    return;
+}
+            // if (gameState.isSpellCard(gameState.selectedCard)) {
 
-                    if (targetUnit == gameState.aiAvatar) {
-                        gameState.endGame(out, "You Win!");
-                        return;
-                    }
+            //     boolean highlightedSpell = gameState.isHighlightedSpellTileByUiCoords(tilex, tiley);
+            //     if (!highlightedSpell) {
+            //         if (out != null) BasicCommands.addPlayer1Notification(out, "Invalid target", 2);
+            //         return;
+            //     }
 
-                    // Wraithling spawn on destroyed tile
-                    Tile spawnTile = gameState.getTile(tilex, tiley);
-                    if (spawnTile != null && spawnTile.getUnit() == null) {
-                        Unit wraithling = BasicObjectBuilders.loadUnit(
-                            utils.StaticConfFiles.wraithling, gameState.nextUnitId++, Unit.class);
-                        spawnTile.setUnit(wraithling);
-                        wraithling.setPositionByTile(spawnTile);
-                        gameState.humanUnits.add(wraithling);
-                        gameState.setUnitHealth(wraithling, 1);
-                        gameState.setUnitAttack(wraithling, 1);
-                        if (out != null) {
-                            BasicCommands.drawUnit(out, wraithling, spawnTile);
-                            try { Thread.sleep(50); } catch (InterruptedException e) { e.printStackTrace(); }
-                            BasicCommands.setUnitHealth(out, wraithling, 1);
-                            BasicCommands.setUnitAttack(out, wraithling, 1);
-                        }
-                    }
+            //     Tile targetTile = gameState.getTile(tilex, tiley);
+            //     if (targetTile == null || targetTile.getUnit() == null) {
+            //         if (out != null) BasicCommands.addPlayer1Notification(out, "Invalid target", 2);
+            //         return;
+            //     }
 
-                } else if ("True Strike".equalsIgnoreCase(spellName)) {
-                    int newHp = gameState.damageTarget(targetUnit, 2);
-                    if (newHp <= 0) {
-                        if (out != null) {
-                            BasicCommands.playUnitAnimation(out, targetUnit, structures.basic.UnitAnimationType.death);
-                            try { Thread.sleep(150); } catch (InterruptedException e) { e.printStackTrace(); }
-                        }
-                        gameState.removeUnitFromBoard(targetUnit, out);
-                        if (out != null) BasicCommands.deleteUnit(out, targetUnit);
-                        if (targetUnit == gameState.aiAvatar) {
-                            gameState.endGame(out, "You Win!");
-                            return;
-                        }
-                    }
+            //     Unit targetUnit = targetTile.getUnit();
+            //     String spellName = gameState.getCardName(gameState.selectedCard);
+            //     int manaCost = gameState.getCardManaCost(gameState.selectedCard);
 
-                } else if ("Sundrop Elixir".equalsIgnoreCase(spellName)) {
-                    gameState.healTarget(targetUnit, 5);
+            //     if (manaCost > gameState.humanPlayer.getMana()) {
+            //         if (out != null) BasicCommands.addPlayer1Notification(out, "Not enough mana", 2);
+            //         gameState.clearCardSelection(out);
+            //         return;
+            //     }
 
-                } else {
-                    if (out != null) BasicCommands.addPlayer1Notification(out, "Spell not implemented yet", 2);
-                    gameState.clearCardSelection(out);
-                    return;
-                }
+            //     if ("Dark Terminus".equalsIgnoreCase(spellName)) {
 
-                // Sync UI after spell
-                if (out != null && targetUnit != gameState.humanAvatar && targetUnit != gameState.aiAvatar) {
-                    BasicCommands.setUnitHealth(out, targetUnit, gameState.getUnitHealth(targetUnit));
-                }
-                gameState.humanPlayer.setMana(gameState.humanPlayer.getMana() - manaCost);
-                if (out != null) BasicCommands.setPlayer1Mana(out, gameState.humanPlayer);
-                gameState.syncPlayerStatsUI(out);
-                if (out != null) {
-                    if (targetUnit == gameState.humanAvatar) {
-                        BasicCommands.setUnitHealth(out, targetUnit, gameState.humanPlayer.getHealth());
-                        BasicCommands.setUnitAttack(out, targetUnit, gameState.getUnitAttack(targetUnit));
-                    } else if (targetUnit == gameState.aiAvatar) {
-                        BasicCommands.setUnitHealth(out, targetUnit, gameState.aiPlayer.getHealth());
-                        BasicCommands.setUnitAttack(out, targetUnit, gameState.getUnitAttack(targetUnit));
-                    }
-                }
-                gameState.humanPlayer.hand.remove(gameState.selectedHandPosition - 1);
-                gameState.refreshHumanHandUI(out);
-                gameState.clearCardSelection(out);
-                gameState.clearMoveTileHighlights(out);
-                gameState.selectedUnit = null;
-                gameState.actionSeq++;
-                System.out.println("[SPELL] cast success: " + spellName + " at (" + tilex + "," + tiley + ")");
-                return;
-            }
+            //         if (out != null) {
+            //             BasicCommands.playUnitAnimation(out, targetUnit, structures.basic.UnitAnimationType.death);
+            //             try { Thread.sleep(150); } catch (InterruptedException e) { e.printStackTrace(); }
+            //         }
+            //         gameState.removeUnitFromBoard(targetUnit, out);
+            //         if (out != null) BasicCommands.deleteUnit(out, targetUnit);
+
+            //         if (targetUnit == gameState.aiAvatar) {
+            //             gameState.endGame(out, "You Win!");
+            //             return;
+            //         }
+
+            //         // Wraithling spawn on destroyed tile
+            //         Tile spawnTile = gameState.getTile(tilex, tiley);
+            //         if (spawnTile != null && spawnTile.getUnit() == null) {
+            //             Unit wraithling = BasicObjectBuilders.loadUnit(
+            //                 utils.StaticConfFiles.wraithling, gameState.nextUnitId++, Unit.class);
+            //             spawnTile.setUnit(wraithling);
+            //             wraithling.setPositionByTile(spawnTile);
+            //             gameState.humanUnits.add(wraithling);
+            //             gameState.setUnitHealth(wraithling, 1);
+            //             gameState.setUnitAttack(wraithling, 1);
+            //             if (out != null) {
+            //                 BasicCommands.drawUnit(out, wraithling, spawnTile);
+            //                 try { Thread.sleep(50); } catch (InterruptedException e) { e.printStackTrace(); }
+            //                 BasicCommands.setUnitHealth(out, wraithling, 1);
+            //                 BasicCommands.setUnitAttack(out, wraithling, 1);
+            //             }
+            //         }
+
+            //     } else if ("True Strike".equalsIgnoreCase(spellName)) {
+            //         int newHp = gameState.damageTarget(targetUnit, 2);
+            //         if (newHp <= 0) {
+            //             if (out != null) {
+            //                 BasicCommands.playUnitAnimation(out, targetUnit, structures.basic.UnitAnimationType.death);
+            //                 try { Thread.sleep(150); } catch (InterruptedException e) { e.printStackTrace(); }
+            //             }
+            //             gameState.removeUnitFromBoard(targetUnit, out);
+            //             if (out != null) BasicCommands.deleteUnit(out, targetUnit);
+            //             if (targetUnit == gameState.aiAvatar) {
+            //                 gameState.endGame(out, "You Win!");
+            //                 return;
+            //             }
+            //         }
+
+            //     } else if ("Sundrop Elixir".equalsIgnoreCase(spellName)) {
+            //         gameState.healTarget(targetUnit, 5);
+
+            //     } else {
+            //         if (out != null) BasicCommands.addPlayer1Notification(out, "Spell not implemented yet", 2);
+            //         gameState.clearCardSelection(out);
+            //         return;
+            //     }
+
+            //     // Sync UI after spell
+            //     if (out != null && targetUnit != gameState.humanAvatar && targetUnit != gameState.aiAvatar) {
+            //         BasicCommands.setUnitHealth(out, targetUnit, gameState.getUnitHealth(targetUnit));
+            //     }
+            //     gameState.humanPlayer.setMana(gameState.humanPlayer.getMana() - manaCost);
+            //     if (out != null) BasicCommands.setPlayer1Mana(out, gameState.humanPlayer);
+            //     gameState.syncPlayerStatsUI(out);
+            //     if (out != null) {
+            //         if (targetUnit == gameState.humanAvatar) {
+            //             BasicCommands.setUnitHealth(out, targetUnit, gameState.humanPlayer.getHealth());
+            //             BasicCommands.setUnitAttack(out, targetUnit, gameState.getUnitAttack(targetUnit));
+            //         } else if (targetUnit == gameState.aiAvatar) {
+            //             BasicCommands.setUnitHealth(out, targetUnit, gameState.aiPlayer.getHealth());
+            //             BasicCommands.setUnitAttack(out, targetUnit, gameState.getUnitAttack(targetUnit));
+            //         }
+            //     }
+            //     gameState.humanPlayer.hand.remove(gameState.selectedHandPosition - 1);
+            //     gameState.refreshHumanHandUI(out);
+            //     gameState.clearCardSelection(out);
+            //     gameState.clearMoveTileHighlights(out);
+            //     gameState.selectedUnit = null;
+            //     gameState.actionSeq++;
+            //     System.out.println("[SPELL] cast success: " + spellName + " at (" + tilex + "," + tiley + ")");
+            //     return;
+            // }
 
             // --- Summon handling ---
             boolean highlighted = gameState.isHighlightedSummonTileByUiCoords(tilex, tiley);

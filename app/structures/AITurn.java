@@ -55,89 +55,100 @@ public class AITurn {
                 continue;
             // if (!card.isCreature())
             // continue; // spells I will implement later
+
             if (!card.isCreature()) {
-                // Spell handling
-                String spellName = gameState.getCardName(card);
-                int manaCost2 = gameState.getCardManaCost(card);
-                if (manaCost2 > gameState.aiPlayer.getMana())
-                    continue;
-
-                if ("Truestrike".equalsIgnoreCase(spellName)) {
-                    // Lowest HP human unit dhundo
-                    Unit target = findLowestHpHumanUnit(gameState);
-                    if (target == null)
-                        continue;
-
-                    int newHp = gameState.getUnitHealth(target) - 2;
-                    if (target == gameState.humanAvatar) {
-                        gameState.humanPlayer.setHealth(newHp);
-                        if (out != null) {
-                            gameState.syncPlayerStatsUI(out);
-                            BasicCommands.setUnitHealth(out, target, newHp);
-                        }
-                        if (newHp <= 0) {
-                            gameState.endGame(out, "You Lose!");
-                            return;
-                        }
-                    } else {
-                        gameState.setUnitHealth(target, newHp);
-                        if (out != null)
-                            BasicCommands.setUnitHealth(out, target, newHp);
-                        if (newHp <= 0) {
-                            gameState.removeUnitFromBoard(target, out);
-                            if (out != null)
-                                BasicCommands.deleteUnit(out, target);
-                        }
-                    }
-                    gameState.aiPlayer.setMana(gameState.aiPlayer.getMana() - manaCost2);
+                boolean cast = SpellEngine.aiCastSpell(out, gameState, card);
+                if (cast) {
+                    gameState.aiPlayer.setMana(gameState.aiPlayer.getMana() - manaCost);
                     gameState.aiPlayer.hand.remove(card);
-                    if (out != null) {
-                        BasicCommands.addPlayer1Notification(out, "Enemy cast True Strike!", 2);
-                        try {
-                            Thread.sleep(2000);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                        gameState.syncPlayerStatsUI(out);
-                    }
-                    System.out.println("AI SPELL True Strike cast");
-
-                } else if ("Sundrop Elixir".equalsIgnoreCase(spellName)) {
-                    // Lowest HP AI unit dhundo
-                    Unit target = findLowestHpAIUnit(gameState);
-                    if (target == null)
-                        continue;
-
-                    int currentHp = gameState.getUnitHealth(target);
-                    int maxHp = gameState.unitMaxHealth.getOrDefault(target, currentHp);
-                    int healedHp = Math.min(currentHp + 5, maxHp); // max health se zyada nahi
-
-                    if (target == gameState.aiAvatar) {
-                        gameState.aiPlayer.setHealth(healedHp);
-                        if (out != null) {
-                            gameState.syncPlayerStatsUI(out);
-                            BasicCommands.setUnitHealth(out, target, healedHp);
-                        }
-                    } else {
-                        gameState.setUnitHealth(target, healedHp);
-                        if (out != null)
-                            BasicCommands.setUnitHealth(out, target, healedHp);
-                    }
-                    gameState.aiPlayer.setMana(gameState.aiPlayer.getMana() - manaCost2);
-                    gameState.aiPlayer.hand.remove(card);
-                    if (out != null) {
-                        BasicCommands.addPlayer1Notification(out, "Enemy cast Sundrop Elixir!", 2);
-                        try {
-                            Thread.sleep(2000);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                        gameState.syncPlayerStatsUI(out);
-                    }
-                    System.out.println("AI SPELL Sundrop Elixir cast");
+                    gameState.syncPlayerStatsUI(out);
                 }
-                continue; // spell processed, next card
+                continue;
             }
+            
+            // if (!card.isCreature()) {
+            //     // Spell handling
+            //     String spellName = gameState.getCardName(card);
+            //     int manaCost2 = gameState.getCardManaCost(card);
+            //     if (manaCost2 > gameState.aiPlayer.getMana())
+            //         continue;
+
+            //     if ("Truestrike".equalsIgnoreCase(spellName)) {
+            //         // Lowest HP human unit dhundo
+            //         Unit target = findLowestHpHumanUnit(gameState);
+            //         if (target == null)
+            //             continue;
+
+            //         int newHp = gameState.getUnitHealth(target) - 2;
+            //         if (target == gameState.humanAvatar) {
+            //             gameState.humanPlayer.setHealth(newHp);
+            //             if (out != null) {
+            //                 gameState.syncPlayerStatsUI(out);
+            //                 BasicCommands.setUnitHealth(out, target, newHp);
+            //             }
+            //             if (newHp <= 0) {
+            //                 gameState.endGame(out, "You Lose!");
+            //                 return;
+            //             }
+            //         } else {
+            //             gameState.setUnitHealth(target, newHp);
+            //             if (out != null)
+            //                 BasicCommands.setUnitHealth(out, target, newHp);
+            //             if (newHp <= 0) {
+            //                 gameState.removeUnitFromBoard(target, out);
+            //                 if (out != null)
+            //                     BasicCommands.deleteUnit(out, target);
+            //             }
+            //         }
+            //         gameState.aiPlayer.setMana(gameState.aiPlayer.getMana() - manaCost2);
+            //         gameState.aiPlayer.hand.remove(card);
+            //         if (out != null) {
+            //             BasicCommands.addPlayer1Notification(out, "Enemy cast True Strike!", 2);
+            //             try {
+            //                 Thread.sleep(2000);
+            //             } catch (InterruptedException e) {
+            //                 e.printStackTrace();
+            //             }
+            //             gameState.syncPlayerStatsUI(out);
+            //         }
+            //         System.out.println("AI SPELL True Strike cast");
+
+            //     } else if ("Sundrop Elixir".equalsIgnoreCase(spellName)) {
+            //         // Lowest HP AI unit dhundo
+            //         Unit target = findLowestHpAIUnit(gameState);
+            //         if (target == null)
+            //             continue;
+
+            //         int currentHp = gameState.getUnitHealth(target);
+            //         int maxHp = gameState.unitMaxHealth.getOrDefault(target, currentHp);
+            //         int healedHp = Math.min(currentHp + 5, maxHp); // max health se zyada nahi
+
+            //         if (target == gameState.aiAvatar) {
+            //             gameState.aiPlayer.setHealth(healedHp);
+            //             if (out != null) {
+            //                 gameState.syncPlayerStatsUI(out);
+            //                 BasicCommands.setUnitHealth(out, target, healedHp);
+            //             }
+            //         } else {
+            //             gameState.setUnitHealth(target, healedHp);
+            //             if (out != null)
+            //                 BasicCommands.setUnitHealth(out, target, healedHp);
+            //         }
+            //         gameState.aiPlayer.setMana(gameState.aiPlayer.getMana() - manaCost2);
+            //         gameState.aiPlayer.hand.remove(card);
+            //         if (out != null) {
+            //             BasicCommands.addPlayer1Notification(out, "Enemy cast Sundrop Elixir!", 2);
+            //             try {
+            //                 Thread.sleep(2000);
+            //             } catch (InterruptedException e) {
+            //                 e.printStackTrace();
+            //             }
+            //             gameState.syncPlayerStatsUI(out);
+            //         }
+            //         System.out.println("AI SPELL Sundrop Elixir cast");
+            //     }
+            //     continue; // spell processed, next card
+            // }
 
             // Find a valid summon tile adjacent to AI units/avatar
             Tile summonTile = findAISummonTile(gameState);

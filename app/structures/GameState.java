@@ -358,50 +358,54 @@ public Unit pendingDefender = null;
     }
 
     public int highlightValidSpellTargets(ActorRef out, Card spellCard) {
-        clearSpellTileHighlights(out);
-
-        if (spellCard == null)
-            return 0;
-
-        String spellName = getCardName(spellCard);
-        int count = 0;
-
-        for (int x = 0; x < 9; x++) {
-            for (int y = 0; y < 5; y++) {
-                Tile t = board[x][y];
-                if (t == null || t.getUnit() == null)
-                    continue;
-
-                Unit u = t.getUnit();
-                boolean valid = false;
-
-                if ("Dark Terminus".equalsIgnoreCase(spellName)) {
-                    valid = aiUnits.contains(u); // only enemy creatures, not on avatar
-                } else if ("True Strike".equalsIgnoreCase(spellName)) {
-                    valid = aiUnits.contains(u) || u == aiAvatar; // all enemy -> creatures + avatar
-                } else if ("Sundrop Elixir".equalsIgnoreCase(spellName)) {
-                    valid = humanUnits.contains(u) || u == humanAvatar; // all friendly
-                }
-
-                if (valid) {
-                    if (out != null) {
-                        BasicCommands.drawTile(out, t, 1);
-                    }
-                    highlightedSpellTiles.add(t);
-
-                    int uiX = t.getTilex();
-                    int uiY = t.getTiley();
-                    if (uiX >= 0 && uiX < spellTileGridByUiCoords.length
-                            && uiY >= 0 && uiY < spellTileGridByUiCoords[0].length) {
-                        spellTileGridByUiCoords[uiX][uiY] = true;
-                    }
-                    count++;
-                }
-            }
-        }
-
-        return count;
+        return SpellEngine.highlightValidTargets(out, this, spellCard);
     }
+    
+    // public int highlightValidSpellTargets(ActorRef out, Card spellCard) {
+    //     clearSpellTileHighlights(out);
+
+    //     if (spellCard == null)
+    //         return 0;
+
+    //     String spellName = getCardName(spellCard);
+    //     int count = 0;
+
+    //     for (int x = 0; x < 9; x++) {
+    //         for (int y = 0; y < 5; y++) {
+    //             Tile t = board[x][y];
+    //             if (t == null || t.getUnit() == null)
+    //                 continue;
+
+    //             Unit u = t.getUnit();
+    //             boolean valid = false;
+
+    //             if ("Dark Terminus".equalsIgnoreCase(spellName)) {
+    //                 valid = aiUnits.contains(u); // only enemy creatures, not on avatar
+    //             } else if ("True Strike".equalsIgnoreCase(spellName)) {
+    //                 valid = aiUnits.contains(u) || u == aiAvatar; // all enemy -> creatures + avatar
+    //             } else if ("Sundrop Elixir".equalsIgnoreCase(spellName)) {
+    //                 valid = humanUnits.contains(u) || u == humanAvatar; // all friendly
+    //             }
+
+    //             if (valid) {
+    //                 if (out != null) {
+    //                     BasicCommands.drawTile(out, t, 1);
+    //                 }
+    //                 highlightedSpellTiles.add(t);
+
+    //                 int uiX = t.getTilex();
+    //                 int uiY = t.getTiley();
+    //                 if (uiX >= 0 && uiX < spellTileGridByUiCoords.length
+    //                         && uiY >= 0 && uiY < spellTileGridByUiCoords[0].length) {
+    //                     spellTileGridByUiCoords[uiX][uiY] = true;
+    //                 }
+    //                 count++;
+    //             }
+    //         }
+    //     }
+
+    //     return count;
+    // }
 
     public void clearSpellTileHighlights(ActorRef out) {
         for (Tile t : highlightedSpellTiles) {

@@ -13,6 +13,7 @@ import structures.basic.Tile;
 import structures.basic.Unit;
 import java.util.HashMap;
 import java.util.Map;
+import structures.MovementEngine;
 
 /**
  * This class can be used to hold information about the on-going game.
@@ -144,125 +145,129 @@ public Unit pendingDefender = null;
     // SC-302: Movement highlighting
     // Rules: up to 2 tiles in cardinal directions, 1 tile diagonal
     public void highlightValidMoveTiles(ActorRef out, int startX, int startY) {
-        // Always clear previous move highlights before showing new ones
-        clearMoveTileHighlights(out);
+        MovementEngine.highlightMoveRange(out, this, startX, startY);
+        // // Always clear previous move highlights before showing new ones
+        // clearMoveTileHighlights(out);
 
-        if (board == null)
-            return;
+        // if (board == null)
+        //     return;
 
-        int[][] offsets = {
-                // cardinal 1 step
-                { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 },
-                // cardinal 2 steps
-                { 2, 0 }, { -2, 0 }, { 0, 2 }, { 0, -2 },
-                // diagonal 1 step only
-                { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 }
-        };
+        // int[][] offsets = {
+        //         // cardinal 1 step
+        //         { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 },
+        //         // cardinal 2 steps
+        //         { 2, 0 }, { -2, 0 }, { 0, 2 }, { 0, -2 },
+        //         // diagonal 1 step only
+        //         { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 }
+        // };
 
-        for (int[] offset : offsets) {
-            int nx = startX + offset[0];
-            int ny = startY + offset[1];
-            if (!isWithinBoard(nx, ny))
-                continue;
+        // for (int[] offset : offsets) {
+        //     int nx = startX + offset[0];
+        //     int ny = startY + offset[1];
+        //     if (!isWithinBoard(nx, ny))
+        //         continue;
 
-            // 2-step cardinal move for intermediate tile check
-            if (Math.abs(offset[0]) == 2 || Math.abs(offset[1]) == 2) {
-                int midX = startX + offset[0] / 2;
-                int midY = startY + offset[1] / 2;
-                if (!isTileFree(midX, midY))
-                    continue; // intermediate blocked- skip
-            }
+        //     // 2-step cardinal move for intermediate tile check
+        //     if (Math.abs(offset[0]) == 2 || Math.abs(offset[1]) == 2) {
+        //         int midX = startX + offset[0] / 2;
+        //         int midY = startY + offset[1] / 2;
+        //         if (!isTileFree(midX, midY))
+        //             continue; // intermediate blocked- skip
+        //     }
 
-            Tile t = board[nx][ny];
-            if (t == null)
-                continue;
+        //     Tile t = board[nx][ny];
+        //     if (t == null)
+        //         continue;
 
-            if (isTileFree(nx, ny)) {
-                BasicCommands.drawTile(out, t, 1); // grey- move tile
-                highlightedMoveTiles.add(t);
-                // Adding is move tile's adjacent enemies should also be highlighted in red
-                for (int dx = -1; dx <= 1; dx++) {
-                    for (int dy = -1; dy <= 1; dy++) {
-                        if (dx == 0 && dy == 0)
-                            continue;
-                        int ex = nx + dx;
-                        int ey = ny + dy;
-                        if (!isWithinBoard(ex, ey))
-                            continue;
-                        Tile et = board[ex][ey];
-                        if (et == null || et.getUnit() == null)
-                            continue;
-                        if (!isEnemyUnit(et.getUnit()))
-                            continue;
-                        // already highlighted check
-                        if (!highlightedMoveTiles.contains(et)) {
-                            BasicCommands.drawTile(out, et, 2); // red
-                            highlightedMoveTiles.add(et);
-                        }
-                    }
-                }
-            } else if (t.getUnit() != null && isEnemyUnit(t.getUnit())) {
-                BasicCommands.drawTile(out, t, 2); // red- enemy in range
-                highlightedMoveTiles.add(t);
-            }
-        }
-        System.out.println("[SC-302] Move tiles highlighted: " + highlightedMoveTiles.size()
-                + " from (" + startX + "," + startY + ")");
+        //     if (isTileFree(nx, ny)) {
+        //         BasicCommands.drawTile(out, t, 1); // grey- move tile
+        //         highlightedMoveTiles.add(t);
+        //         // Adding is move tile's adjacent enemies should also be highlighted in red
+        //         for (int dx = -1; dx <= 1; dx++) {
+        //             for (int dy = -1; dy <= 1; dy++) {
+        //                 if (dx == 0 && dy == 0)
+        //                     continue;
+        //                 int ex = nx + dx;
+        //                 int ey = ny + dy;
+        //                 if (!isWithinBoard(ex, ey))
+        //                     continue;
+        //                 Tile et = board[ex][ey];
+        //                 if (et == null || et.getUnit() == null)
+        //                     continue;
+        //                 if (!isEnemyUnit(et.getUnit()))
+        //                     continue;
+        //                 // already highlighted check
+        //                 if (!highlightedMoveTiles.contains(et)) {
+        //                     BasicCommands.drawTile(out, et, 2); // red
+        //                     highlightedMoveTiles.add(et);
+        //                 }
+        //             }
+        //         }
+        //     } else if (t.getUnit() != null && isEnemyUnit(t.getUnit())) {
+        //         BasicCommands.drawTile(out, t, 2); // red- enemy in range
+        //         highlightedMoveTiles.add(t);
+        //     }
+        // }
+        // System.out.println("[SC-302] Move tiles highlighted: " + highlightedMoveTiles.size()
+        //         + " from (" + startX + "," + startY + ")");
     }
 
     public int highlightValidAttackTiles(ActorRef out, Unit unit) {
-        Tile unitTile = findTileContainingUnit(unit);
-        if (unitTile == null)
-            return 0;
+        return MovementEngine.highlightAttackRange(out, this, unit);
+        // Tile unitTile = findTileContainingUnit(unit);
+        // if (unitTile == null)
+        //     return 0;
 
-        int ux = unitTile.getTilex();
-        int uy = unitTile.getTiley();
-        int count = 0;
+        // int ux = unitTile.getTilex();
+        // int uy = unitTile.getTiley();
+        // int count = 0;
 
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dy = -1; dy <= 1; dy++) {
-                if (dx == 0 && dy == 0)
-                    continue;
-                int nx = ux + dx;
-                int ny = uy + dy;
-                if (!isWithinBoard(nx, ny))
-                    continue;
+        // for (int dx = -1; dx <= 1; dx++) {
+        //     for (int dy = -1; dy <= 1; dy++) {
+        //         if (dx == 0 && dy == 0)
+        //             continue;
+        //         int nx = ux + dx;
+        //         int ny = uy + dy;
+        //         if (!isWithinBoard(nx, ny))
+        //             continue;
 
-                Tile t = board[nx][ny];
-                if (t != null && t.getUnit() != null && isEnemyUnit(t.getUnit())) {
-                    BasicCommands.drawTile(out, t, 2); // only red for enemy tile
-                    highlightedMoveTiles.add(t);
-                    count++;
-                }
-            }
-        }
-        return count;
+        //         Tile t = board[nx][ny];
+        //         if (t != null && t.getUnit() != null && isEnemyUnit(t.getUnit())) {
+        //             BasicCommands.drawTile(out, t, 2); // only red for enemy tile
+        //             highlightedMoveTiles.add(t);
+        //             count++;
+        //         }
+        //     }
+        // }
+        // return count;
     }
 
     // Clear only movement range highlights
     public void clearMoveTileHighlights(ActorRef out) {
-        for (Tile t : highlightedMoveTiles) {
-            if (out != null) {
-                BasicCommands.drawTile(out, t, 0);
-            }
-            try {
-                Thread.sleep(5);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-        highlightedMoveTiles.clear();
+        MovementEngine.clearMoveHighlights(out, this);
+        // for (Tile t : highlightedMoveTiles) {
+        //     if (out != null) {
+        //         BasicCommands.drawTile(out, t, 0);
+        //     }
+        //     try {
+        //         Thread.sleep(5);
+        //     } catch (InterruptedException e) {
+        //         e.printStackTrace();
+        //     }
+        // }
+        // highlightedMoveTiles.clear();
     }
 
     public boolean isHighlightedMoveTile(int x, int y) {
-        if (!isWithinBoard(x, y))
-            return false;
+        return MovementEngine.isHighlightedMoveTile(this, x, y);
+        // if (!isWithinBoard(x, y))
+        //     return false;
 
-        Tile t = board[x][y];
-        if (t == null)
-            return false;
+        // Tile t = board[x][y];
+        // if (t == null)
+        //     return false;
 
-        return highlightedMoveTiles.contains(t);
+        // return highlightedMoveTiles.contains(t);
     }
 
     // SC-201: Summon tile highlighting

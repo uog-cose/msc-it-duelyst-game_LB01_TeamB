@@ -269,141 +269,173 @@ public class AITurn {
     }
 
     // STEP 2: Move Units
+    // private void moveUnits(ActorRef out, GameState gameState) {
+    //     List<Unit> toMove = new ArrayList<>(gameState.aiUnits);
+    //     toMove.add(gameState.aiAvatar);
+
+    //     for (Unit unit : toMove) {
+    //         if (gameState.hasUnitAttacked(unit))
+    //             continue;
+
+    //         Tile unitTile = gameState.findTileContainingUnit(unit);
+    //         if (unitTile == null)
+    //             continue;
+
+    //         // Already adjacent to enemy, no need to move
+    //         if (hasAdjacentEnemy(unitTile, gameState))
+    //             continue;
+
+    //         // Find best tile to move toward nearest enemy
+    //         Tile bestTile = findBestMoveTile(unit, unitTile, gameState);
+    //         if (bestTile == null)
+    //             continue;
+
+    //         // Execute move
+    //         unitTile.setUnit(null);
+    //         bestTile.setUnit(unit);
+    //         unit.setPositionByTile(bestTile);
+    //         gameState.markUnitAsMoved(unit);
+
+    //         if (out != null) {
+    //             BasicCommands.moveUnitToTile(out, unit, bestTile);
+    //             try {
+    //                 Thread.sleep(100);
+    //             } catch (InterruptedException e) {
+    //                 e.printStackTrace();
+    //             }
+    //         }
+
+    //         System.out.println("[AI] Moved unit to ("
+    //                 + bestTile.getTilex() + "," + bestTile.getTiley() + ")");
+    //     }
+    // }
+
     private void moveUnits(ActorRef out, GameState gameState) {
         List<Unit> toMove = new ArrayList<>(gameState.aiUnits);
         toMove.add(gameState.aiAvatar);
-
+ 
         for (Unit unit : toMove) {
-            if (gameState.hasUnitAttacked(unit))
-                continue;
-
+            if (gameState.hasUnitAttacked(unit)) continue;
+ 
             Tile unitTile = gameState.findTileContainingUnit(unit);
-            if (unitTile == null)
-                continue;
-
-            // Already adjacent to enemy, no need to move
-            if (hasAdjacentEnemy(unitTile, gameState))
-                continue;
-
+            if (unitTile == null) continue;
+ 
+            // Already adjacent to a human unit/avatar — no need to move
+            if (MovementEngine.hasAdjacentEnemy(gameState, unitTile)) continue;
+ 
             // Find best tile to move toward nearest enemy
-            Tile bestTile = findBestMoveTile(unit, unitTile, gameState);
-            if (bestTile == null)
-                continue;
-
-            // Execute move
-            unitTile.setUnit(null);
-            bestTile.setUnit(unit);
-            unit.setPositionByTile(bestTile);
-            gameState.markUnitAsMoved(unit);
-
+            Tile bestTile = MovementEngine.findBestAIMoveTile(gameState, unit, unitTile);
+            if (bestTile == null) continue;
+ 
+            // Execute move via MovementEngine
+            MovementEngine.executeMove(out, gameState, unit, bestTile);
+ 
+            // AI needs a small sleep so animation doesn't pile up
             if (out != null) {
-                BasicCommands.moveUnitToTile(out, unit, bestTile);
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
+                try { Thread.sleep(100); } catch (InterruptedException e) { e.printStackTrace(); }
             }
-
+ 
             System.out.println("[AI] Moved unit to ("
-                    + bestTile.getTilex() + "," + bestTile.getTiley() + ")");
+                + bestTile.getTilex() + "," + bestTile.getTiley() + ")");
         }
     }
 
-    private boolean hasAdjacentEnemy(Tile tile, GameState gameState) {
-        int tx = tile.getTilex();
-        int ty = tile.getTiley();
+    // private boolean hasAdjacentEnemy(Tile tile, GameState gameState) {
 
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dy = -1; dy <= 1; dy++) {
-                if (dx == 0 && dy == 0)
-                    continue;
-                int nx = tx + dx;
-                int ny = ty + dy;
-                if (!gameState.isWithinBoard(nx, ny))
-                    continue;
-                Tile t = gameState.board[nx][ny];
-                if (t != null && t.getUnit() != null) {
-                    Unit u = t.getUnit();
-                    if (u == gameState.humanAvatar || gameState.humanUnits.contains(u)) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
+    //     int tx = tile.getTilex();
+    //     int ty = tile.getTiley();
 
-    private Tile findBestMoveTile(Unit unit, Tile unitTile, GameState gameState) {
-        // Find nearest human unit/avatar
-        Unit nearestEnemy = findNearestEnemy(unitTile, gameState);
-        if (nearestEnemy == null)
-            return null;
+    //     for (int dx = -1; dx <= 1; dx++) {
+    //         for (int dy = -1; dy <= 1; dy++) {
+    //             if (dx == 0 && dy == 0)
+    //                 continue;
+    //             int nx = tx + dx;
+    //             int ny = ty + dy;
+    //             if (!gameState.isWithinBoard(nx, ny))
+    //                 continue;
+    //             Tile t = gameState.board[nx][ny];
+    //             if (t != null && t.getUnit() != null) {
+    //                 Unit u = t.getUnit();
+    //                 if (u == gameState.humanAvatar || gameState.humanUnits.contains(u)) {
+    //                     return true;
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     return false;
+    // }
 
-        Tile enemyTile = gameState.findTileContainingUnit(nearestEnemy);
-        if (enemyTile == null)
-            return null;
+    // private Tile findBestMoveTile(Unit unit, Tile unitTile, GameState gameState) {
+    //     // Find nearest human unit/avatar
+    //     Unit nearestEnemy = findNearestEnemy(unitTile, gameState);
+    //     if (nearestEnemy == null)
+    //         return null;
 
-        int ux = unitTile.getTilex();
-        int uy = unitTile.getTiley();
+    //     Tile enemyTile = gameState.findTileContainingUnit(nearestEnemy);
+    //     if (enemyTile == null)
+    //         return null;
 
-        // Valid move offsets-> 2 cardinal, 1 diagonal
-        int[][] offsets = {
-                { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 },
-                { 2, 0 }, { -2, 0 }, { 0, 2 }, { 0, -2 },
-                { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 }
-        };
+    //     int ux = unitTile.getTilex();
+    //     int uy = unitTile.getTiley();
 
-        Tile bestTile = null;
-        double bestDist = Double.MAX_VALUE;
+    //     // Valid move offsets-> 2 cardinal, 1 diagonal
+    //     int[][] offsets = {
+    //             { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 },
+    //             { 2, 0 }, { -2, 0 }, { 0, 2 }, { 0, -2 },
+    //             { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 }
+    //     };
 
-        for (int[] offset : offsets) {
-            int nx = ux + offset[0];
-            int ny = uy + offset[1];
-            if (!gameState.isWithinBoard(nx, ny))
-                continue;
-            if (!gameState.isTileFree(nx, ny))
-                continue;
+    //     Tile bestTile = null;
+    //     double bestDist = Double.MAX_VALUE;
 
-            // Distance to enemy from this tile
-            double dist = Math.sqrt(
-                    Math.pow(nx - enemyTile.getTilex(), 2) +
-                            Math.pow(ny - enemyTile.getTiley(), 2));
+    //     for (int[] offset : offsets) {
+    //         int nx = ux + offset[0];
+    //         int ny = uy + offset[1];
+    //         if (!gameState.isWithinBoard(nx, ny))
+    //             continue;
+    //         if (!gameState.isTileFree(nx, ny))
+    //             continue;
 
-            if (dist < bestDist) {
-                bestDist = dist;
-                bestTile = gameState.board[nx][ny];
-            }
-        }
+    //         // Distance to enemy from this tile
+    //         double dist = Math.sqrt(
+    //                 Math.pow(nx - enemyTile.getTilex(), 2) +
+    //                         Math.pow(ny - enemyTile.getTiley(), 2));
 
-        return bestTile;
-    }
+    //         if (dist < bestDist) {
+    //             bestDist = dist;
+    //             bestTile = gameState.board[nx][ny];
+    //         }
+    //     }
 
-    private Unit findNearestEnemy(Tile fromTile, GameState gameState) {
-        Unit nearest = null;
-        double minDist = Double.MAX_VALUE;
+    //     return bestTile;
+    // }
 
-        List<Unit> enemies = new ArrayList<>(gameState.humanUnits);
-        enemies.add(gameState.humanAvatar);
+    // private Unit findNearestEnemy(Tile fromTile, GameState gameState) {
+    //     Unit nearest = null;
+    //     double minDist = Double.MAX_VALUE;
 
-        for (Unit enemy : enemies) {
-            Tile t = gameState.findTileContainingUnit(enemy);
-            if (t == null)
-                continue;
+    //     List<Unit> enemies = new ArrayList<>(gameState.humanUnits);
+    //     enemies.add(gameState.humanAvatar);
 
-            double dist = Math.sqrt(
-                    Math.pow(fromTile.getTilex() - t.getTilex(), 2) +
-                            Math.pow(fromTile.getTiley() - t.getTiley(), 2));
+    //     for (Unit enemy : enemies) {
+    //         Tile t = gameState.findTileContainingUnit(enemy);
+    //         if (t == null)
+    //             continue;
 
-            if (dist < minDist) {
-                minDist = dist;
-                nearest = enemy;
-            }
-        }
-        return nearest;
-    }
+    //         double dist = Math.sqrt(
+    //                 Math.pow(fromTile.getTilex() - t.getTilex(), 2) +
+    //                         Math.pow(fromTile.getTiley() - t.getTiley(), 2));
+
+    //         if (dist < minDist) {
+    //             minDist = dist;
+    //             nearest = enemy;
+    //         }
+    //     }
+    //     return nearest;
+    // }
 
     // STEP 3: Attack
+    
     private void attackWithUnits(ActorRef out, GameState gameState) {
         List<Unit> attackers = new ArrayList<>(gameState.aiUnits);
         attackers.add(gameState.aiAvatar);

@@ -4,76 +4,67 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import akka.actor.ActorRef;
 import commands.BasicCommands;
+import structures.CombatHandler;
 import structures.GameState;
+import structures.MovementEngine;
 import structures.basic.Tile;
 import structures.basic.Unit;
 import utils.BasicObjectBuilders;
-import structures.CombatHandler;
-import java.util.ArrayList;
 
 /**
  * Indicates that the user has clicked an object on the game canvas, in this
  * case a tile.
- * The event returns the x (horizontal) and y (vertical) indices of the tile
- * that was
- * clicked. Tile indices start at 1.
  *
  * {
- * messageType = “tileClicked”
- * tilex = <x index of the tile>
- * tiley = <y index of the tile>
+ *   messageType = "tileClicked"
+ *   tilex = <x index of the tile>
+ *   tiley = <y index of the tile>
  * }
  *
- * @author Dr. Richard McCreadie
- *
+ * Step 2 Refactor:
+ * - Move execute logic → MovementEngine.executeMove()
+ * - bestMoveTile finder  → MovementEngine.findBestApproachTile()
+ * - Highlight calls      → MovementEngine.highlightMoveRange() / highlightAttackRange()
+ * - TileClicked is now pure routing only
  */
 public class TileClicked implements EventProcessor {
 
     @Override
     public void processEvent(ActorRef out, GameState gameState, JsonNode message) {
 
-        int rawTilex = message.get("tilex").asInt();
-        int rawTiley = message.get("tiley").asInt();
+        int tilex = message.get("tilex").asInt();
+        int tiley = message.get("tiley").asInt();
 
-        int tilex = rawTilex;
-        int tiley = rawTiley;
-
-        System.out.println("[SC-201] tileclicked raw=(" + rawTilex + "," + rawTiley
-                + ") zeroBased=(" + tilex + "," + tiley + ")");
+        System.out.println("[TileClicked] (" + tilex + "," + tiley + ")");
 
         if (!gameState.gameInitalised || !gameState.humanTurn) {
-            System.out.println("[SC-201] tileclick ignored: game not initialised or not human turn");
+            System.out.println("[TileClicked] ignored: game not initialised or not human turn");
             return;
         }
 
+        // =====================================================================
+        // CASE 1: Card selected — spell cast OR unit summon
+        // (Spell/summon logic unchanged — that's Step 4)
+        // =====================================================================
         if (gameState.selectedCard != null && gameState.selectedHandPosition >= 1) {
 
             if (!gameState.isWithinBoard(tilex, tiley)) {
-                System.out.println("[SC-205] invalid target: outside board");
                 BasicCommands.addPlayer1Notification(out, "Invalid target", 2);
                 return;
             }
 
-            // spell card handling SC-205 ro check if the selected card is a spell and
-            // handle accordingly,
-            // placing this code before summon unit part as the highlighting logic for spell
-            // cards is different
-            // and I don't want to accidentally treat a spell card as a summon card.
+            // --- Spell handling ---
             if (gameState.isSpellCard(gameState.selectedCard)) {
 
                 boolean highlightedSpell = gameState.isHighlightedSpellTileByUiCoords(tilex, tiley);
                 if (!highlightedSpell) {
-                    if (out != null) {
-                        BasicCommands.addPlayer1Notification(out, "Invalid target", 2);
-                    }
+                    if (out != null) BasicCommands.addPlayer1Notification(out, "Invalid target", 2);
                     return;
                 }
 
                 Tile targetTile = gameState.getTile(tilex, tiley);
                 if (targetTile == null || targetTile.getUnit() == null) {
-                    if (out != null) {
-                        BasicCommands.addPlayer1Notification(out, "Invalid target", 2);
-                    }
+                    if (out != null) BasicCommands.addPlayer1Notification(out, "Invalid target", 2);
                     return;
                 }
 
@@ -82,9 +73,7 @@ public class TileClicked implements EventProcessor {
                 int manaCost = gameState.getCardManaCost(gameState.selectedCard);
 
                 if (manaCost > gameState.humanPlayer.getMana()) {
-                    if (out != null) {
-                        BasicCommands.addPlayer1Notification(out, "Not enough mana", 2);
-                    }
+                    if (out != null) BasicCommands.addPlayer1Notification(out, "Not enough mana", 2);
                     gameState.clearCardSelection(out);
                     return;
                 }
@@ -93,32 +82,21 @@ public class TileClicked implements EventProcessor {
 
                     if (out != null) {
                         BasicCommands.playUnitAnimation(out, targetUnit, structures.basic.UnitAnimationType.death);
-                        try {
-                            Thread.sleep(150);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
+                        try { Thread.sleep(150); } catch (InterruptedException e) { e.printStackTrace(); }
                     }
-
                     gameState.removeUnitFromBoard(targetUnit, out);
+                    if (out != null) BasicCommands.deleteUnit(out, targetUnit);
 
-                    if (out != null) {
-                        BasicCommands.deleteUnit(out, targetUnit);
-                    }
-
-                    // SC-WIN: Dark Terminus destroys AI avatar thus HUMAN WINS
                     if (targetUnit == gameState.aiAvatar) {
-                        BasicCommands.addPlayer1Notification(out, "You Win!", 5);
-                        // gameState.gameInitalised = false;
                         gameState.endGame(out, "You Win!");
                         return;
                     }
 
-                    // Wraithling spawn on destroyed unit's tile
+                    // Wraithling spawn on destroyed tile
                     Tile spawnTile = gameState.getTile(tilex, tiley);
                     if (spawnTile != null && spawnTile.getUnit() == null) {
                         Unit wraithling = BasicObjectBuilders.loadUnit(
-                                utils.StaticConfFiles.wraithling, gameState.nextUnitId++, Unit.class);
+                            utils.StaticConfFiles.wraithling, gameState.nextUnitId++, Unit.class);
                         spawnTile.setUnit(wraithling);
                         wraithling.setPositionByTile(spawnTile);
                         gameState.humanUnits.add(wraithling);
@@ -126,11 +104,7 @@ public class TileClicked implements EventProcessor {
                         gameState.setUnitAttack(wraithling, 1);
                         if (out != null) {
                             BasicCommands.drawUnit(out, wraithling, spawnTile);
-                            try {
-                                Thread.sleep(50);
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
+                            try { Thread.sleep(50); } catch (InterruptedException e) { e.printStackTrace(); }
                             BasicCommands.setUnitHealth(out, wraithling, 1);
                             BasicCommands.setUnitAttack(out, wraithling, 1);
                         }
@@ -139,26 +113,13 @@ public class TileClicked implements EventProcessor {
                 } else if ("True Strike".equalsIgnoreCase(spellName)) {
                     int newHp = gameState.damageTarget(targetUnit, 2);
                     if (newHp <= 0) {
-
                         if (out != null) {
                             BasicCommands.playUnitAnimation(out, targetUnit, structures.basic.UnitAnimationType.death);
-                            try {
-                                Thread.sleep(150);
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
+                            try { Thread.sleep(150); } catch (InterruptedException e) { e.printStackTrace(); }
                         }
-
                         gameState.removeUnitFromBoard(targetUnit, out);
-
-                        if (out != null) {
-                            BasicCommands.deleteUnit(out, targetUnit);
-                        }
-
-                        // SC-WIN: True Strike destroys AI avatar - HUMAN WINS
+                        if (out != null) BasicCommands.deleteUnit(out, targetUnit);
                         if (targetUnit == gameState.aiAvatar) {
-                            BasicCommands.addPlayer1Notification(out, "You Win!", 5);
-                            // gameState.gameInitalised = false;
                             gameState.endGame(out, "You Win!");
                             return;
                         }
@@ -168,26 +129,18 @@ public class TileClicked implements EventProcessor {
                     gameState.healTarget(targetUnit, 5);
 
                 } else {
-                    if (out != null) {
-                        BasicCommands.addPlayer1Notification(out, "Spell not implemented yet", 2);
-                    }
+                    if (out != null) BasicCommands.addPlayer1Notification(out, "Spell not implemented yet", 2);
                     gameState.clearCardSelection(out);
                     return;
                 }
-                // sending updated health to UI after applying spell effects,
+
+                // Sync UI after spell
                 if (out != null && targetUnit != gameState.humanAvatar && targetUnit != gameState.aiAvatar) {
                     BasicCommands.setUnitHealth(out, targetUnit, gameState.getUnitHealth(targetUnit));
                 }
-
                 gameState.humanPlayer.setMana(gameState.humanPlayer.getMana() - manaCost);
-                if (out != null) {
-                    BasicCommands.setPlayer1Mana(out, gameState.humanPlayer);
-                }
-
-                // sync avatar/player HP if avatar was target
+                if (out != null) BasicCommands.setPlayer1Mana(out, gameState.humanPlayer);
                 gameState.syncPlayerStatsUI(out);
-
-                // updating health stats after spell and attack
                 if (out != null) {
                     if (targetUnit == gameState.humanAvatar) {
                         BasicCommands.setUnitHealth(out, targetUnit, gameState.humanPlayer.getHealth());
@@ -197,33 +150,27 @@ public class TileClicked implements EventProcessor {
                         BasicCommands.setUnitAttack(out, targetUnit, gameState.getUnitAttack(targetUnit));
                     }
                 }
-
                 gameState.humanPlayer.hand.remove(gameState.selectedHandPosition - 1);
                 gameState.refreshHumanHandUI(out);
-
                 gameState.clearCardSelection(out);
                 gameState.clearMoveTileHighlights(out);
                 gameState.selectedUnit = null;
                 gameState.actionSeq++;
-
                 System.out.println("[SPELL] cast success: " + spellName + " at (" + tilex + "," + tiley + ")");
                 return;
             }
 
+            // --- Summon handling ---
             boolean highlighted = gameState.isHighlightedSummonTileByUiCoords(tilex, tiley);
             boolean free = gameState.isTileFree(tilex, tiley);
 
-            System.out.println("summon check — highlighted=" + highlighted + " free=" + free);
-
             if (!highlighted || !free) {
-                System.out.println("[SC-205] invalid target: not highlighted or not free");
                 BasicCommands.addPlayer1Notification(out, "Invalid target", 2);
                 return;
             }
 
             int manaCost = gameState.getCardManaCost(gameState.selectedCard);
             if (manaCost > gameState.humanPlayer.getMana()) {
-                System.out.println("[SC-205] summon blocked: not enough mana");
                 BasicCommands.addPlayer1Notification(out, "Not enough mana", 2);
                 gameState.clearCardSelection(out);
                 return;
@@ -236,12 +183,9 @@ public class TileClicked implements EventProcessor {
             }
 
             String unitConfigPath = gameState.buildUnitConfigPath(gameState.selectedCard);
-            System.out.println("[SC-201] loading unit from " + unitConfigPath);
-
             Unit summonedUnit;
             try {
-                summonedUnit = BasicObjectBuilders.loadUnit(
-                        unitConfigPath, gameState.nextUnitId++, Unit.class);
+                summonedUnit = BasicObjectBuilders.loadUnit(unitConfigPath, gameState.nextUnitId++, Unit.class);
             } catch (Exception e) {
                 e.printStackTrace();
                 BasicCommands.addPlayer1Notification(out, "Unable to load unit", 2);
@@ -253,85 +197,64 @@ public class TileClicked implements EventProcessor {
             summonedUnit.setPositionByTile(targetTile);
             gameState.humanUnits.add(summonedUnit);
 
-            // Saving unit name for deathwatch
             gameState.unitNames.put(summonedUnit,
-                    gameState.getCardName(gameState.selectedCard)
-                            .toLowerCase()
-                            .replace("'", "")
-                            .replaceAll("[^a-z0-9]+", "_")
-                            .replaceAll("^_+|_+$", ""));
+                gameState.getCardName(gameState.selectedCard)
+                    .toLowerCase().replace("'", "")
+                    .replaceAll("[^a-z0-9]+", "_")
+                    .replaceAll("^_+|_+$", ""));
 
-            // Adding Opening Gambit trigger
             gameState.triggerOpeningGambit(out, summonedUnit, targetTile, true);
 
-            // to handle play spell health
             int summonedHp = gameState.getCardHealth(gameState.selectedCard);
-            gameState.setUnitHealth(summonedUnit, summonedHp);
             int summonedAtk = gameState.getCardAttack(gameState.selectedCard);
+            gameState.setUnitHealth(summonedUnit, summonedHp);
             gameState.setUnitAttack(summonedUnit, summonedAtk);
-            System.out.println("summoned unit hp and attack" + summonedHp + summonedAtk);
 
             gameState.humanPlayer.setMana(gameState.humanPlayer.getMana() - manaCost);
             if (out != null) {
                 BasicCommands.setPlayer1Mana(out, gameState.humanPlayer);
                 BasicCommands.drawUnit(out, summonedUnit, targetTile);
-                try {
-                    Thread.sleep(50);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                } // to show summon unit health
+                try { Thread.sleep(50); } catch (InterruptedException e) { e.printStackTrace(); }
                 BasicCommands.setUnitHealth(out, summonedUnit, summonedHp);
                 BasicCommands.setUnitAttack(out, summonedUnit, summonedAtk);
             }
 
             gameState.humanPlayer.hand.remove(gameState.selectedHandPosition - 1);
             gameState.refreshHumanHandUI(out);
-
             gameState.clearCardSelection(out);
             gameState.clearMoveTileHighlights(out);
             gameState.selectedUnit = null;
             gameState.actionSeq++;
 
-            System.out.println("[SC-201] summon success at (" + tilex + "," + tiley
-                    + ") mana=" + gameState.humanPlayer.getMana()
-                    + " handSize=" + gameState.humanPlayer.hand.size());
+            System.out.println("[SC-201] summon success at (" + tilex + "," + tiley + ")");
             return;
-
         }
 
-        // Start of movement handling logic here
+        // =====================================================================
+        // CASE 2: Unit selected + clicked a highlighted move tile
+        // → MovementEngine.executeMove()
+        // =====================================================================
         if (gameState.selectedUnit != null) {
             Tile clickedMoveTile = gameState.getTile(tilex, tiley);
 
             if (clickedMoveTile != null
                     && clickedMoveTile.getUnit() == null
-                    && gameState.isHighlightedMoveTile(tilex, tiley)) {
+                    && MovementEngine.isHighlightedMoveTile(gameState, tilex, tiley)) {
 
-                Tile currentTile = gameState.findTileContainingUnit(gameState.selectedUnit);
-                if (currentTile != null) {
-                    currentTile.setUnit(null);
-                }
+                // Delegate move to MovementEngine
+                MovementEngine.executeMove(out, gameState, gameState.selectedUnit, clickedMoveTile);
 
-                clickedMoveTile.setUnit(gameState.selectedUnit);
-                gameState.selectedUnit.setPositionByTile(clickedMoveTile);
-
-                if (out != null) {
-                    BasicCommands.moveUnitToTile(out, gameState.selectedUnit, clickedMoveTile);
-                }
-
-                System.out.println("[SC-301] moved unit to (" + tilex + "," + tiley + ")");
-
-                gameState.markUnitAsMoved(gameState.selectedUnit);
                 gameState.clearMoveTileHighlights(out);
                 gameState.selectedUnit = null;
-                // gameState.highlightValidAttackTiles(out, gameState.selectedUnit);
                 gameState.actionSeq++;
+                System.out.println("[SC-301] moved unit to (" + tilex + "," + tiley + ")");
                 return;
             }
         }
-        // END of movememt handling logic
 
-        // CASE 2: No card selected to handle unit selection (SC-302)
+        // =====================================================================
+        // CASE 3: No card — unit selection (SC-302)
+        // =====================================================================
         Tile clickedTile = gameState.getTile(tilex, tiley);
 
         if (clickedTile != null && clickedTile.getUnit() != null) {
@@ -342,26 +265,23 @@ public class TileClicked implements EventProcessor {
             if (isFriendly) {
 
                 if (gameState.hasUnitAttacked(clickedUnit)) {
-                    System.out.println("[SC-305] unit already attacked, movement blocked");
                     gameState.clearMoveTileHighlights(out);
                     gameState.selectedUnit = null;
-
-                    if (out != null) {
-                        BasicCommands.addPlayer1Notification(out, "This unit cannot move after attacking", 2);
-                    }
+                    if (out != null) BasicCommands.addPlayer1Notification(out, "This unit cannot move after attacking", 2);
                     return;
                 }
 
                 if (gameState.hasUnitMoved(clickedUnit)) {
-                    // moved already — select for attack only, no move highlights
+                    // Already moved — show attack-only highlights
                     if (gameState.selectedUnit == clickedUnit) {
                         gameState.clearMoveTileHighlights(out);
                         gameState.selectedUnit = null;
                     } else {
                         gameState.clearMoveTileHighlights(out);
-                        gameState.selectedUnit = clickedUnit; // intentionally no highlightValidMoveTiles
+                        gameState.selectedUnit = clickedUnit;
 
-                        int enemyCount = gameState.highlightValidAttackTiles(out, clickedUnit);
+                        // Delegate to MovementEngine for attack-only highlights
+                        int enemyCount = MovementEngine.highlightAttackRange(out, gameState, clickedUnit);
                         if (enemyCount == 0) {
                             BasicCommands.addPlayer1Notification(out, "Moved: No enemies in range", 2);
                             gameState.selectedUnit = null;
@@ -373,22 +293,22 @@ public class TileClicked implements EventProcessor {
                 }
 
                 if (gameState.selectedUnit == clickedUnit) {
-                    // Same unit clicked again to toggle off
-                    System.out.println("[SC-302] deselecting unit (toggle off)");
+                    // Toggle off
                     gameState.clearMoveTileHighlights(out);
                     gameState.selectedUnit = null;
                 } else {
-                    // New unit selected to clear old highlights, show new range
-                    System.out.println("[SC-302] selecting unit at (" + tilex + "," + tiley + ")");
+                    // Select new unit + show move range
                     gameState.selectedUnit = clickedUnit;
-                    gameState.highlightValidMoveTiles(out, tilex, tiley);
+                    // Delegate to MovementEngine
+                    MovementEngine.highlightMoveRange(out, gameState, tilex, tiley);
                 }
                 return;
             }
         }
 
-        // CASE 3: Attack enemy with selected unit/avatar SC-303
-        // CASE 3: Attack enemy with selected unit/avatar SC-303
+        // =====================================================================
+        // CASE 4: Attack enemy with selected unit (SC-303)
+        // =====================================================================
         if (clickedTile != null
                 && clickedTile.getUnit() != null
                 && gameState.selectedUnit != null
@@ -398,8 +318,7 @@ public class TileClicked implements EventProcessor {
             Unit defender = clickedTile.getUnit();
 
             Tile attackerTile = gameState.findTileContainingUnit(attacker);
-            if (attackerTile == null)
-                return;
+            if (attackerTile == null) return;
 
             if (gameState.hasUnitAttacked(attacker)) {
                 BasicCommands.addPlayer1Notification(out, "Unit already attacked!", 2);
@@ -415,49 +334,30 @@ public class TileClicked implements EventProcessor {
                 gameState.clearMoveTileHighlights(out);
                 gameState.selectedUnit = null;
                 gameState.actionSeq++;
-                System.out.println("[SC-303] attack success at (" + tilex + "," + tiley + ")");
+                System.out.println("[SC-303] direct attack at (" + tilex + "," + tiley + ")");
 
             } else {
-                // Not adjacent — store pending attack, move karo
+                // Not adjacent — need to move first then attack
                 if (gameState.hasUnitMoved(attacker)) {
                     BasicCommands.addPlayer1Notification(out, "Target is out of range!", 2);
                     return;
                 }
-            
-                // Best adjacent free tile dhundo
-                Tile bestMoveTile = null;
-                int bestDist = Integer.MAX_VALUE;
-                for (Tile moveTile : new ArrayList<>(gameState.highlightedMoveTiles)) {
-                    if (moveTile.getUnit() != null) continue;
-                    int mdx = Math.abs(moveTile.getTilex() - tilex);
-                    int mdy = Math.abs(moveTile.getTiley() - tiley);
-                    if (mdx <= 1 && mdy <= 1 && !(mdx == 0 && mdy == 0)) {
-                        int dist = mdx + mdy;
-                        if (dist < bestDist) {
-                            bestDist = dist;
-                            bestMoveTile = moveTile;
-                        }
-                    }
-                }
-            
+
+                // Delegate approach tile finding to MovementEngine
+                Tile bestMoveTile = MovementEngine.findBestApproachTile(gameState, tilex, tiley);
+
                 if (bestMoveTile == null) {
                     BasicCommands.addPlayer1Notification(out, "Target is out of range!", 2);
                     return;
                 }
-            
-                // Pending attack store karo — UnitStopped me trigger hoga
+
+                // Store pending attack — fires in UnitStopped after animation
                 gameState.pendingAttacker = attacker;
                 gameState.pendingDefender = defender;
-            
-                // Move karo — NO sleep
-                Tile currentTile = gameState.findTileContainingUnit(attacker);
-                if (currentTile != null) currentTile.setUnit(null);
-                bestMoveTile.setUnit(attacker);
-                attacker.setPositionByTile(bestMoveTile);
-                gameState.markUnitAsMoved(attacker);
-                if (out != null) {
-                    BasicCommands.moveUnitToTile(out, attacker, bestMoveTile);
-                }
+
+                // Delegate move to MovementEngine
+                MovementEngine.executeMove(out, gameState, attacker, bestMoveTile);
+
                 gameState.clearMoveTileHighlights(out);
                 gameState.selectedUnit = null;
                 gameState.actionSeq++;
@@ -466,7 +366,7 @@ public class TileClicked implements EventProcessor {
             return;
         }
 
-        // Clicked empty or enemy tile with no card to clear everything
+        // Clicked empty/irrelevant tile — clear everything
         System.out.println("[TileClicked] clearing selection");
         gameState.clearMoveTileHighlights(out);
         gameState.selectedUnit = null;

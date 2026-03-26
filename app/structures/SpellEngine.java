@@ -257,9 +257,7 @@ public class SpellEngine {
         System.out.println("[SpellEngine] Sundrop Elixir: healed " + gs.getUnitName(targetUnit));
     }
 
-    // =========================================================================
     // PRIVATE — AI TARGET FINDERS
-    // =========================================================================
 
     /**
      * AI True Strike target: lowest HP human unit or avatar.

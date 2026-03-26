@@ -19,7 +19,7 @@ public class CombatHandler {
             BasicCommands.playUnitAnimation(out, defender, UnitAnimationType.hit);
         }
 
-        // === PHASE 1: Attacker hits Defender ===
+        //PHASE 1: Attacker hits Defender
         int attackDmg = gs.getUnitAttack(attacker);
         int defenderHp = gs.getUnitHealth(defender) - attackDmg;
         defenderHp = Math.max(0, defenderHp);
@@ -63,7 +63,7 @@ public class CombatHandler {
             }
         }
 
-        // === PHASE 2: Counter Attack ===
+        // PHASE 2: Counter Attack
         boolean defenderAlive = (defender == gs.aiAvatar)
                 ? gs.aiPlayer.getHealth() > 0
                 : gs.getUnitHealth(defender) > 0;

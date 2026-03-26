@@ -8,6 +8,8 @@ import structures.GameState;
 import structures.basic.Tile;
 import structures.basic.Unit;
 import utils.BasicObjectBuilders;
+import structures.CombatHandler;
+import java.util.ArrayList;
 
 /**
  * Indicates that the user has clicked an object on the game canvas, in this
@@ -386,6 +388,7 @@ public class TileClicked implements EventProcessor {
         }
 
         // CASE 3: Attack enemy with selected unit/avatar SC-303
+        // CASE 3: Attack enemy with selected unit/avatar SC-303
         if (clickedTile != null
                 && clickedTile.getUnit() != null
                 && gameState.selectedUnit != null
@@ -397,6 +400,7 @@ public class TileClicked implements EventProcessor {
             Tile attackerTile = gameState.findTileContainingUnit(attacker);
             if (attackerTile == null)
                 return;
+
             if (gameState.hasUnitAttacked(attacker)) {
                 BasicCommands.addPlayer1Notification(out, "Unit already attacked!", 2);
                 return;
@@ -405,163 +409,61 @@ public class TileClicked implements EventProcessor {
             int dx = Math.abs(attackerTile.getTilex() - tilex);
             int dy = Math.abs(attackerTile.getTiley() - tiley);
 
-            // melee range: adjacent 8 directions
             if (dx <= 1 && dy <= 1 && !(dx == 0 && dy == 0)) {
-
-                if (out != null) {
-                    BasicCommands.playUnitAnimation(out, attacker, structures.basic.UnitAnimationType.attack);
-                    BasicCommands.playUnitAnimation(out, defender, structures.basic.UnitAnimationType.hit);
-                }
-
-                int attackerDamage = gameState.getUnitAttack(attacker);
-                int defenderHealth = gameState.getUnitHealth(defender) - attackerDamage;
-
-                if (defender == gameState.aiAvatar) {
-                    if (defenderHealth <= 0) {
-                        gameState.aiPlayer.setHealth(0);
-
-                        if (out != null) {
-                            gameState.syncPlayerStatsUI(out);
-                            BasicCommands.setUnitHealth(out, defender, 0);
-                            BasicCommands.setUnitAttack(out, defender, gameState.getUnitAttack(defender));
-                            BasicCommands.playUnitAnimation(out, defender, structures.basic.UnitAnimationType.death);
-                            try {
-                                Thread.sleep(150);
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                            BasicCommands.deleteUnit(out, defender);
-                            // Game Over: AI avatar defeated — human wins, lock the game
-                            BasicCommands.addPlayer1Notification(out, "You Win!", 5);
-                            // gameState.gameInitalised = false;
-                            gameState.endGame(out, "You Win!");
-                            return;
-                        }
-
-                        Tile defenderTile = gameState.findTileContainingUnit(defender);
-                        if (defenderTile != null) {
-                            defenderTile.setUnit(null);
-                        }
-
-                        gameState.aiUnits.remove(defender);
-
-                        // optional: stop game after avatar death
-                        // gameState.humanTurn = false;
-
-                    } else {
-                        gameState.aiPlayer.setHealth(defenderHealth);
-                        if (out != null) {
-                            gameState.syncPlayerStatsUI(out);
-                            BasicCommands.setUnitHealth(out, defender, gameState.aiPlayer.getHealth());
-                            BasicCommands.setUnitAttack(out, defender, gameState.getUnitAttack(defender));
-                        }
-                        // Zeal trigger, avatar damaged but alive
-                        gameState.triggerZeal(out);
-                    }
-                } else {
-                    if (defenderHealth <= 0) {
-                        gameState.setUnitHealth(defender, 0);
-
-                        if (out != null) {
-                            BasicCommands.setUnitHealth(out, defender, 0);
-                            BasicCommands.playUnitAnimation(out, defender, structures.basic.UnitAnimationType.death);
-                            try {
-                                Thread.sleep(150);
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                        }
-
-                        gameState.removeUnitFromBoard(defender, out);
-
-                        if (out != null) {
-                            BasicCommands.deleteUnit(out, defender);
-                        }
-                    } else {
-                        gameState.setUnitHealth(defender, defenderHealth);
-                        if (out != null) {
-                            BasicCommands.setUnitHealth(out, defender, defenderHealth);
-                        }
-                    }
-                }
-
-                boolean defenderAlive = false;
-                if (defender == gameState.aiAvatar) {
-                    defenderAlive = gameState.aiPlayer.getHealth() > 0;
-                } else {
-                    defenderAlive = gameState.getUnitHealth(defender) > 0;
-                }
-
-                // if (defenderAlive && !defender.hasCounterAttacked()) {
-                if (defenderAlive) {
-                    int defenderDamage = gameState.getUnitAttack(defender);
-                    int attackerHealth = gameState.getUnitHealth(attacker) - defenderDamage;
-
-                    if (out != null) {
-                        BasicCommands.playUnitAnimation(out, defender, structures.basic.UnitAnimationType.attack);
-                        BasicCommands.playUnitAnimation(out, attacker, structures.basic.UnitAnimationType.hit);
-                    }
-
-                    if (attacker == gameState.humanAvatar) {
-                        gameState.humanPlayer.setHealth(attackerHealth);
-                        if (out != null) {
-                            gameState.syncPlayerStatsUI(out);
-                            BasicCommands.setUnitHealth(out, attacker, gameState.humanPlayer.getHealth());
-                            BasicCommands.setUnitAttack(out, attacker, gameState.getUnitAttack(attacker));
-
-                            // Game Over: Human avatar defeated by counter-attack — human loses, lock the
-                            // game
-                            if (attackerHealth <= 0) {
-                                BasicCommands.addPlayer1Notification(out, "You Lose!", 5);
-                                // gameState.gameInitalised = false;
-                                gameState.endGame(out, "You Lose!");
-                                return;
-                            }
-                        }
-                    } else {
-                        if (attackerHealth <= 0) {
-                            gameState.setUnitHealth(attacker, 0);
-
-                            if (out != null) {
-                                BasicCommands.setUnitHealth(out, attacker, 0);
-                                BasicCommands.playUnitAnimation(out, attacker,
-                                        structures.basic.UnitAnimationType.death);
-                                try {
-                                    Thread.sleep(150);
-                                } catch (InterruptedException e) {
-                                    e.printStackTrace();
-                                }
-                            }
-
-                            gameState.removeUnitFromBoard(attacker, out);
-
-                            if (out != null) {
-                                BasicCommands.deleteUnit(out, attacker);
-                            }
-                        } else {
-                            gameState.setUnitHealth(attacker, attackerHealth);
-                            if (out != null) {
-                                BasicCommands.setUnitHealth(out, attacker, attackerHealth);
-                            }
-                        }
-                    }
-
-                    // defender.setHasCounterAttacked(true);
-                }
-                gameState.markUnitAsAttacked(attacker);
+                // Direct adjacent attack
+                CombatHandler.executeAttack(out, gameState, attacker, defender);
                 gameState.clearMoveTileHighlights(out);
                 gameState.selectedUnit = null;
                 gameState.actionSeq++;
-
                 System.out.println("[SC-303] attack success at (" + tilex + "," + tiley + ")");
-                return;
 
             } else {
-                if (out != null) {
+                // Not adjacent — store pending attack, move karo
+                if (gameState.hasUnitMoved(attacker)) {
                     BasicCommands.addPlayer1Notification(out, "Target is out of range!", 2);
+                    return;
                 }
-                return;
+            
+                // Best adjacent free tile dhundo
+                Tile bestMoveTile = null;
+                int bestDist = Integer.MAX_VALUE;
+                for (Tile moveTile : new ArrayList<>(gameState.highlightedMoveTiles)) {
+                    if (moveTile.getUnit() != null) continue;
+                    int mdx = Math.abs(moveTile.getTilex() - tilex);
+                    int mdy = Math.abs(moveTile.getTiley() - tiley);
+                    if (mdx <= 1 && mdy <= 1 && !(mdx == 0 && mdy == 0)) {
+                        int dist = mdx + mdy;
+                        if (dist < bestDist) {
+                            bestDist = dist;
+                            bestMoveTile = moveTile;
+                        }
+                    }
+                }
+            
+                if (bestMoveTile == null) {
+                    BasicCommands.addPlayer1Notification(out, "Target is out of range!", 2);
+                    return;
+                }
+            
+                // Pending attack store karo — UnitStopped me trigger hoga
+                gameState.pendingAttacker = attacker;
+                gameState.pendingDefender = defender;
+            
+                // Move karo — NO sleep
+                Tile currentTile = gameState.findTileContainingUnit(attacker);
+                if (currentTile != null) currentTile.setUnit(null);
+                bestMoveTile.setUnit(attacker);
+                attacker.setPositionByTile(bestMoveTile);
+                gameState.markUnitAsMoved(attacker);
+                if (out != null) {
+                    BasicCommands.moveUnitToTile(out, attacker, bestMoveTile);
+                }
+                gameState.clearMoveTileHighlights(out);
+                gameState.selectedUnit = null;
+                gameState.actionSeq++;
+                System.out.println("[SC-303] move triggered, attack pending UnitStopped");
             }
+            return;
         }
 
         // Clicked empty or enemy tile with no card to clear everything

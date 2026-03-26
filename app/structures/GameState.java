@@ -36,6 +36,10 @@ public class GameState {
     // Avatars
     public Unit humanAvatar = null;
     public Unit aiAvatar = null;
+    // Pending attack after move
+public Unit pendingAttacker = null;
+public Unit pendingDefender = null;
+
     // Runtime HP tracking for non-avatar units (avatars use Player health)
     public Map<Unit, Integer> unitHealth = new HashMap<>();
     public Map<Unit, Integer> unitAttack = new HashMap<>();
@@ -267,6 +271,7 @@ public class GameState {
     public int highlightValidSummonTiles(ActorRef out) {
         // Clear previous summon highlights before showing new ones
         clearSummonTileHighlights(out);
+        clearMoveTileHighlights(out);
 
         int count = 0;
         count += highlightAdjacentFreeTilesAroundUnit(out, humanAvatar);

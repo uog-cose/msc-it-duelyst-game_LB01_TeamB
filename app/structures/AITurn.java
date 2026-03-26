@@ -11,6 +11,7 @@ import utils.OrderedCardLoader;
 
 import java.util.ArrayList;
 import java.util.List;
+import structures.CombatHandler;
 
 /**
  * Handles all AI turn logic automatically.
@@ -416,6 +417,7 @@ public class AITurn {
                 continue;
 
             // Find adjacent enemy-> priority: human avatar first
+            
             Unit target = findAttackTarget(attackerTile, gameState);
             if (target == null)
                 continue;
@@ -425,103 +427,105 @@ public class AITurn {
                 continue;
 
             // Play animations
-            if (out != null) {
-                BasicCommands.playUnitAnimation(out, attacker, UnitAnimationType.attack);
-                BasicCommands.playUnitAnimation(out, target, UnitAnimationType.hit);
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
+            // if (out != null) {
+            //     BasicCommands.playUnitAnimation(out, attacker, UnitAnimationType.attack);
+            //     BasicCommands.playUnitAnimation(out, target, UnitAnimationType.hit);
+            //     try {
+            //         Thread.sleep(100);
+            //     } catch (InterruptedException e) {
+            //         e.printStackTrace();
+            //     }
+            // }
 
             // Deal damage to target
-            int attackDmg = gameState.getUnitAttack(attacker);
-            int targetHp = gameState.getUnitHealth(target) - attackDmg;
+            // int attackDmg = gameState.getUnitAttack(attacker);
+            // int targetHp = gameState.getUnitHealth(target) - attackDmg;
 
-            if (target == gameState.humanAvatar) {
-                gameState.humanPlayer.setHealth(targetHp);
-                if (out != null) {
-                    gameState.syncPlayerStatsUI(out);
-                    BasicCommands.setUnitHealth(out, target, gameState.humanPlayer.getHealth());
-                }
-                // Win condition-> human avatar dead
-                if (targetHp <= 0) {
-                    if (out != null) {
-                        BasicCommands.addPlayer1Notification(out, "You Lose!", 5);
-                    }
-                    // gameState.gameInitalised = false;
-                    gameState.endGame(out, "You Lose!");
-                    return;
-                }
-            } else {
-                gameState.setUnitHealth(target, targetHp);
-                if (out != null) {
-                    BasicCommands.setUnitHealth(out, target, targetHp);
-                }
-                if (targetHp <= 0) {
-                    gameState.removeUnitFromBoard(target, out);
-                    if (out != null) {
-                        BasicCommands.playUnitAnimation(out, target, UnitAnimationType.death);
-                        try {
-                            Thread.sleep(100);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                        BasicCommands.deleteUnit(out, target);
-                    }
-                }
-            }
+            // if (target == gameState.humanAvatar) {
+            //     gameState.humanPlayer.setHealth(targetHp);
+            //     if (out != null) {
+            //         gameState.syncPlayerStatsUI(out);
+            //         BasicCommands.setUnitHealth(out, target, gameState.humanPlayer.getHealth());
+            //     }
+            //     // Win condition-> human avatar dead
+            //     if (targetHp <= 0) {
+            //         if (out != null) {
+            //             BasicCommands.addPlayer1Notification(out, "You Lose!", 5);
+            //         }
+            //         // gameState.gameInitalised = false;
+            //         gameState.endGame(out, "You Lose!");
+            //         return;
+            //     }
+            // } else {
+            //     gameState.setUnitHealth(target, targetHp);
+            //     if (out != null) {
+            //         BasicCommands.setUnitHealth(out, target, targetHp);
+            //     }
+            //     if (targetHp <= 0) {
+            //         gameState.removeUnitFromBoard(target, out);
+            //         if (out != null) {
+            //             BasicCommands.playUnitAnimation(out, target, UnitAnimationType.death);
+            //             try {
+            //                 Thread.sleep(100);
+            //             } catch (InterruptedException e) {
+            //                 e.printStackTrace();
+            //             }
+            //             BasicCommands.deleteUnit(out, target);
+            //         }
+            //     }
+            // }
 
-            // Counter attack
-            boolean targetAlive = (target == gameState.humanAvatar)
-                    ? gameState.humanPlayer.getHealth() > 0
-                    : gameState.getUnitHealth(target) > 0;
+            // // Counter attack
+            // boolean targetAlive = (target == gameState.humanAvatar)
+            //         ? gameState.humanPlayer.getHealth() > 0
+            //         : gameState.getUnitHealth(target) > 0;
 
-            if (targetAlive) {
-                int counterDmg = gameState.getUnitAttack(target);
-                int attackerHp = gameState.getUnitHealth(attacker) - counterDmg;
+            // if (targetAlive) {
+            //     int counterDmg = gameState.getUnitAttack(target);
+            //     int attackerHp = gameState.getUnitHealth(attacker) - counterDmg;
 
-                if (out != null) {
-                    BasicCommands.playUnitAnimation(out, target, UnitAnimationType.attack);
-                    BasicCommands.playUnitAnimation(out, attacker, UnitAnimationType.hit);
-                    try {
-                        Thread.sleep(100);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
+            //     if (out != null) {
+            //         BasicCommands.playUnitAnimation(out, target, UnitAnimationType.attack);
+            //         BasicCommands.playUnitAnimation(out, attacker, UnitAnimationType.hit);
+            //         try {
+            //             Thread.sleep(100);
+            //         } catch (InterruptedException e) {
+            //             e.printStackTrace();
+            //         }
+            //     }
 
-                if (attacker == gameState.aiAvatar) {
-                    gameState.aiPlayer.setHealth(attackerHp);
-                    if (out != null) {
-                        gameState.syncPlayerStatsUI(out);
-                        BasicCommands.setUnitHealth(out, attacker, gameState.aiPlayer.getHealth());
-                    }
-                    // Zeal trigger
-                    gameState.triggerZeal(out);
-                } else {
-                    gameState.setUnitHealth(attacker, attackerHp);
-                    if (out != null) {
-                        BasicCommands.setUnitHealth(out, attacker, attackerHp);
-                    }
-                    if (attackerHp <= 0) {
-                        gameState.removeUnitFromBoard(attacker, out);
-                        if (out != null) {
-                            BasicCommands.playUnitAnimation(out, attacker, UnitAnimationType.death);
-                            try {
-                                Thread.sleep(100);
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                            BasicCommands.deleteUnit(out, attacker);
-                        }
-                    }
-                }
-            }
+            //     if (attacker == gameState.aiAvatar) {
+            //         gameState.aiPlayer.setHealth(attackerHp);
+            //         if (out != null) {
+            //             gameState.syncPlayerStatsUI(out);
+            //             BasicCommands.setUnitHealth(out, attacker, gameState.aiPlayer.getHealth());
+            //         }
+            //         // Zeal trigger
+            //         gameState.triggerZeal(out);
+            //     } else {
+            //         gameState.setUnitHealth(attacker, attackerHp);
+            //         if (out != null) {
+            //             BasicCommands.setUnitHealth(out, attacker, attackerHp);
+            //         }
+            //         if (attackerHp <= 0) {
+            //             gameState.removeUnitFromBoard(attacker, out);
+            //             if (out != null) {
+            //                 BasicCommands.playUnitAnimation(out, attacker, UnitAnimationType.death);
+            //                 try {
+            //                     Thread.sleep(100);
+            //                 } catch (InterruptedException e) {
+            //                     e.printStackTrace();
+            //                 }
+            //                 BasicCommands.deleteUnit(out, attacker);
+            //             }
+            //         }
+            //     }
+            // }
 
-            gameState.markUnitAsAttacked(attacker);
-            System.out.println("[AI] Attacked with unit");
+            // gameState.markUnitAsAttacked(attacker);
+            // System.out.println("[AI] Attacked with unit");
+
+            CombatHandler.executeAttack(out, gameState, attacker, target);
         }
     }
 

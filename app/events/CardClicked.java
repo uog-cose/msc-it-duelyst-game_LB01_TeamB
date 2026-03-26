@@ -60,6 +60,7 @@ public class CardClicked implements EventProcessor {
         // exclusive)
         gameState.clearMoveTileHighlights(out);
         gameState.selectedUnit = null;
+        try { Thread.sleep(50); } catch (InterruptedException e) { e.printStackTrace(); } // let queue being flushed to highlight tiles properly
 
         if (gameState.isSpellCard(clickedCard)) {
             if (manaCost > gameState.humanPlayer.getMana()) {

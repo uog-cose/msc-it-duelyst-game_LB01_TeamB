@@ -39,8 +39,8 @@ public class GameState {
     public Unit humanAvatar = null;
     public Unit aiAvatar = null;
     // Pending attack after move
-public Unit pendingAttacker = null;
-public Unit pendingDefender = null;
+    public Unit pendingAttacker = null;
+    public Unit pendingDefender = null;
 
     // Runtime HP tracking for non-avatar units (avatars use Player health)
     public Map<Unit, Integer> unitHealth = new HashMap<>();
@@ -237,7 +237,11 @@ public Unit pendingDefender = null;
             if (out != null) {
                 BasicCommands.drawTile(out, t, 0);
             }
-            try { Thread.sleep(5); } catch (InterruptedException e) { e.printStackTrace(); }
+            try {
+                Thread.sleep(5);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
         highlightedSummonTiles.clear();
         summonTileGrid = new boolean[9][5];
@@ -273,6 +277,8 @@ public Unit pendingDefender = null;
 
     public void setUnitHealth(Unit unit, int hp) {
         if (unit != null) {
+            if (unit == humanAvatar || unit == aiAvatar)
+                return;
             unitHealth.put(unit, hp);
             // setting max health for 1st attempt
             unitMaxHealth.putIfAbsent(unit, hp);
@@ -483,7 +489,8 @@ public Unit pendingDefender = null;
 
     public void clearCardSelection(ActorRef out) {
         if (selectedCard != null && selectedHandPosition >= 1) {
-            if (out != null) {
+            // if (out != null) {
+            if (out != null && humanPlayer.hand.contains(selectedCard)) {
                 BasicCommands.drawCard(out, selectedCard, selectedHandPosition, 0);
             }
         }

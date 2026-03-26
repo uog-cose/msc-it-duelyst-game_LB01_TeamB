@@ -61,94 +61,11 @@ public class AITurn {
                 if (cast) {
                     gameState.aiPlayer.setMana(gameState.aiPlayer.getMana() - manaCost);
                     gameState.aiPlayer.hand.remove(card);
-                    gameState.syncPlayerStatsUI(out);
+                    // gameState.syncPlayerStatsUI(out);
+                    BasicCommands.setPlayer2Mana(out, gameState.aiPlayer);
                 }
                 continue;
             }
-            
-            // if (!card.isCreature()) {
-            //     // Spell handling
-            //     String spellName = gameState.getCardName(card);
-            //     int manaCost2 = gameState.getCardManaCost(card);
-            //     if (manaCost2 > gameState.aiPlayer.getMana())
-            //         continue;
-
-            //     if ("Truestrike".equalsIgnoreCase(spellName)) {
-            //         // Lowest HP human unit dhundo
-            //         Unit target = findLowestHpHumanUnit(gameState);
-            //         if (target == null)
-            //             continue;
-
-            //         int newHp = gameState.getUnitHealth(target) - 2;
-            //         if (target == gameState.humanAvatar) {
-            //             gameState.humanPlayer.setHealth(newHp);
-            //             if (out != null) {
-            //                 gameState.syncPlayerStatsUI(out);
-            //                 BasicCommands.setUnitHealth(out, target, newHp);
-            //             }
-            //             if (newHp <= 0) {
-            //                 gameState.endGame(out, "You Lose!");
-            //                 return;
-            //             }
-            //         } else {
-            //             gameState.setUnitHealth(target, newHp);
-            //             if (out != null)
-            //                 BasicCommands.setUnitHealth(out, target, newHp);
-            //             if (newHp <= 0) {
-            //                 gameState.removeUnitFromBoard(target, out);
-            //                 if (out != null)
-            //                     BasicCommands.deleteUnit(out, target);
-            //             }
-            //         }
-            //         gameState.aiPlayer.setMana(gameState.aiPlayer.getMana() - manaCost2);
-            //         gameState.aiPlayer.hand.remove(card);
-            //         if (out != null) {
-            //             BasicCommands.addPlayer1Notification(out, "Enemy cast True Strike!", 2);
-            //             try {
-            //                 Thread.sleep(2000);
-            //             } catch (InterruptedException e) {
-            //                 e.printStackTrace();
-            //             }
-            //             gameState.syncPlayerStatsUI(out);
-            //         }
-            //         System.out.println("AI SPELL True Strike cast");
-
-            //     } else if ("Sundrop Elixir".equalsIgnoreCase(spellName)) {
-            //         // Lowest HP AI unit dhundo
-            //         Unit target = findLowestHpAIUnit(gameState);
-            //         if (target == null)
-            //             continue;
-
-            //         int currentHp = gameState.getUnitHealth(target);
-            //         int maxHp = gameState.unitMaxHealth.getOrDefault(target, currentHp);
-            //         int healedHp = Math.min(currentHp + 5, maxHp); // max health se zyada nahi
-
-            //         if (target == gameState.aiAvatar) {
-            //             gameState.aiPlayer.setHealth(healedHp);
-            //             if (out != null) {
-            //                 gameState.syncPlayerStatsUI(out);
-            //                 BasicCommands.setUnitHealth(out, target, healedHp);
-            //             }
-            //         } else {
-            //             gameState.setUnitHealth(target, healedHp);
-            //             if (out != null)
-            //                 BasicCommands.setUnitHealth(out, target, healedHp);
-            //         }
-            //         gameState.aiPlayer.setMana(gameState.aiPlayer.getMana() - manaCost2);
-            //         gameState.aiPlayer.hand.remove(card);
-            //         if (out != null) {
-            //             BasicCommands.addPlayer1Notification(out, "Enemy cast Sundrop Elixir!", 2);
-            //             try {
-            //                 Thread.sleep(2000);
-            //             } catch (InterruptedException e) {
-            //                 e.printStackTrace();
-            //             }
-            //             gameState.syncPlayerStatsUI(out);
-            //         }
-            //         System.out.println("AI SPELL Sundrop Elixir cast");
-            //     }
-            //     continue; // spell processed, next card
-            // }
 
             // Find a valid summon tile adjacent to AI units/avatar
             Tile summonTile = findAISummonTile(gameState);
@@ -197,56 +114,14 @@ public class AITurn {
                 }
                 BasicCommands.setUnitHealth(out, unit, hp);
                 BasicCommands.setUnitAttack(out, unit, atk);
-                gameState.syncPlayerStatsUI(out);
+                // gameState.syncPlayerStatsUI(out);
+                BasicCommands.setPlayer2Health(out, gameState.aiPlayer);
+                BasicCommands.setPlayer2Mana(out, gameState.aiPlayer);
             }
 
             System.out.println("[AI] Summoned: " + gameState.getCardName(card)
                     + " at (" + summonTile.getTilex() + "," + summonTile.getTiley() + ")");
         }
-    }
-
-    // Lowest HP human unit (avatar included)
-    private Unit findLowestHpHumanUnit(GameState gameState) {
-        Unit target = null;
-        int lowestHp = Integer.MAX_VALUE;
-
-        // avatar check
-        int avatarHp = gameState.humanPlayer.getHealth();
-        if (avatarHp < lowestHp) {
-            lowestHp = avatarHp;
-            target = gameState.humanAvatar;
-        }
-
-        for (Unit u : gameState.humanUnits) {
-            int hp = gameState.getUnitHealth(u);
-            if (hp < lowestHp) {
-                lowestHp = hp;
-                target = u;
-            }
-        }
-        return target;
-    }
-
-    // Lowest HP AI unit (avatar included)
-    private Unit findLowestHpAIUnit(GameState gameState) {
-        Unit target = null;
-        int lowestHp = Integer.MAX_VALUE;
-
-        // avatar check
-        int avatarHp = gameState.aiPlayer.getHealth();
-        if (avatarHp < lowestHp) {
-            lowestHp = avatarHp;
-            target = gameState.aiAvatar;
-        }
-
-        for (Unit u : gameState.aiUnits) {
-            int hp = gameState.getUnitHealth(u);
-            if (hp < lowestHp) {
-                lowestHp = hp;
-                target = u;
-            }
-        }
-        return target;
     }
 
     // Find free tile adjacent to any AI unit or avatar
@@ -284,35 +159,43 @@ public class AITurn {
     private void moveUnits(ActorRef out, GameState gameState) {
         List<Unit> toMove = new ArrayList<>(gameState.aiUnits);
         toMove.add(gameState.aiAvatar);
- 
+
         for (Unit unit : toMove) {
-            if (gameState.hasUnitAttacked(unit)) continue;
- 
+            if (gameState.hasUnitAttacked(unit))
+                continue;
+
             Tile unitTile = gameState.findTileContainingUnit(unit);
-            if (unitTile == null) continue;
- 
+            if (unitTile == null)
+                continue;
+
             // Already adjacent to a human unit/avatar — no need to move
-            if (MovementEngine.hasAdjacentEnemy(gameState, unitTile)) continue;
- 
+            if (MovementEngine.hasAdjacentEnemy(gameState, unitTile))
+                continue;
+
             // Find best tile to move toward nearest enemy
             Tile bestTile = MovementEngine.findBestAIMoveTile(gameState, unit, unitTile);
-            if (bestTile == null) continue;
- 
+            if (bestTile == null)
+                continue;
+
             // Execute move via MovementEngine
             MovementEngine.executeMove(out, gameState, unit, bestTile);
- 
+
             // AI needs a small sleep so animation doesn't pile up
             if (out != null) {
-                try { Thread.sleep(100); } catch (InterruptedException e) { e.printStackTrace(); }
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
- 
+
             System.out.println("[AI] Moved unit to ("
-                + bestTile.getTilex() + "," + bestTile.getTiley() + ")");
+                    + bestTile.getTilex() + "," + bestTile.getTiley() + ")");
         }
     }
 
     // STEP 3: Attack
-    
+
     private void attackWithUnits(ActorRef out, GameState gameState) {
         List<Unit> attackers = new ArrayList<>(gameState.aiUnits);
         attackers.add(gameState.aiAvatar);
@@ -325,8 +208,6 @@ public class AITurn {
             if (attackerTile == null)
                 continue;
 
-            // Find adjacent enemy-> priority: human avatar first
-            
             Unit target = findAttackTarget(attackerTile, gameState);
             if (target == null)
                 continue;
@@ -335,8 +216,21 @@ public class AITurn {
             if (targetTile == null)
                 continue;
 
-            // Play animations
+            // Pause before each attack so player can see each combat clearly
+            try {
+                Thread.sleep(600);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
             CombatHandler.executeAttack(out, gameState, attacker, target);
+
+            // Pause after attack+counter resolves before next unit attacks
+            try {
+                Thread.sleep(800);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -404,20 +298,23 @@ public class AITurn {
         gameState.humanPlayer.setMana(mana);
 
         // Draw card for human
-        if (gameState.humanPlayer.deck != null && !gameState.humanPlayer.deck.isEmpty()) {
-            if (gameState.humanPlayer.hand.size() < 6) {
-                Card drawn = gameState.humanPlayer.deck.remove(0);
-                gameState.humanPlayer.hand.add(drawn);
-                int pos = gameState.humanPlayer.hand.size();
-                if (out != null) {
-                    BasicCommands.drawCard(out, drawn, pos, 0);
-                }
-            }
-        }
+        // if (gameState.humanPlayer.deck != null && !gameState.humanPlayer.deck.isEmpty()) {
+        //     if (gameState.humanPlayer.hand.size() < 6) {
+        //         Card drawn = gameState.humanPlayer.deck.remove(0);
+        //         gameState.humanPlayer.hand.add(drawn);
+        //         int pos = gameState.humanPlayer.hand.size();
+        //         if (out != null) {
+        //             BasicCommands.drawCard(out, drawn, pos, 0);
+        //         }
+        //     }
+        // }
+
+        
 
         if (out != null) {
-            gameState.syncPlayerStatsUI(out);
+            // gameState.syncPlayerStatsUI(out);
             BasicCommands.addPlayer1Notification(out, "Your Turn!", 2);
+            // BasicCommands.addPlayer1Notification(out, "Your Turn!", 2);
         }
 
         System.out.println("AI Turn ended-> human turn starts, turn=" + gameState.turnNumber);

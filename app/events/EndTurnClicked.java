@@ -93,8 +93,16 @@ public class EndTurnClicked implements EventProcessor {
 		}
 
 		// SC-402: Use new utility to sync UI easily
+		// if (out != null) {
+		// 	gameState.syncPlayerStatsUI(out);
+		// }
+
 		if (out != null) {
-			gameState.syncPlayerStatsUI(out);
+			if (gameState.humanTurn) {
+				BasicCommands.setPlayer1Mana(out, gameState.humanPlayer);
+			} else {
+				BasicCommands.setPlayer2Mana(out, gameState.aiPlayer);
+			}
 		}
 
 		// AI turn triggers here

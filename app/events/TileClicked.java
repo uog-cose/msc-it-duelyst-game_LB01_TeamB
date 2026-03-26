@@ -88,7 +88,11 @@ public class TileClicked implements EventProcessor {
                 if (out != null)
                     BasicCommands.setPlayer1Mana(out, gameState.humanPlayer);
                 gameState.syncPlayerStatsUI(out);
-                gameState.humanPlayer.hand.remove(gameState.selectedHandPosition - 1);
+                // gameState.humanPlayer.hand.remove(gameState.selectedHandPosition - 1);
+                int removeIdx = gameState.humanPlayer.hand.indexOf(gameState.selectedCard);
+                if (removeIdx >= 0) {
+                    gameState.humanPlayer.hand.remove(removeIdx);
+                }
                 gameState.refreshHumanHandUI(out);
                 gameState.clearCardSelection(out);
                 gameState.clearMoveTileHighlights(out);
@@ -161,7 +165,11 @@ public class TileClicked implements EventProcessor {
                 BasicCommands.setUnitAttack(out, summonedUnit, summonedAtk);
             }
 
-            gameState.humanPlayer.hand.remove(gameState.selectedHandPosition - 1);
+            // gameState.humanPlayer.hand.remove(gameState.selectedHandPosition - 1);
+            int removeIdx = gameState.humanPlayer.hand.indexOf(gameState.selectedCard);
+            if (removeIdx >= 0) {
+                gameState.humanPlayer.hand.remove(removeIdx);
+            }
             gameState.refreshHumanHandUI(out);
             gameState.clearCardSelection(out);
             gameState.clearMoveTileHighlights(out);
@@ -173,7 +181,7 @@ public class TileClicked implements EventProcessor {
         }
 
         // CASE 2: Unit selected + clicked a highlighted move tile
-        //  MovementEngine.executeMove()
+        // MovementEngine.executeMove()
 
         if (gameState.selectedUnit != null) {
             Tile clickedMoveTile = gameState.getTile(tilex, tiley);

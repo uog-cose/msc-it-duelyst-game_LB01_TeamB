@@ -23,47 +23,7 @@ public class CombatHandler {
         int attackDmg = gs.getUnitAttack(attacker);
         int defenderHp = gs.getUnitHealth(defender) - attackDmg;
         defenderHp = Math.max(0, defenderHp);
-
-        // if (defender == gs.aiAvatar) {
-        //     if (defenderHp <= 0) {
-        //         // AI Avatar dead — You Win
-        //         gs.aiPlayer.setHealth(0);
-        //         if (out != null) {
-        //             // gs.syncPlayerStatsUI(out);
-        //             BasicCommands.setPlayer2Health(out, gs.aiPlayer);
-        //             BasicCommands.setUnitHealth(out, defender, 0);
-        //             BasicCommands.playUnitAnimation(out, defender, UnitAnimationType.death);
-        //             try { Thread.sleep(150); } catch (InterruptedException e) { e.printStackTrace(); }
-        //             BasicCommands.deleteUnit(out, defender);
-        //         }
-        //         Tile defTile = gs.findTileContainingUnit(defender);
-        //         if (defTile != null) defTile.setUnit(null);
-        //         gs.aiUnits.remove(defender);
-        //         gs.endGame(out, "You Win!");
-        //         return;
-        //     } else {
-        //         // AI Avatar damaged but alive
-        //         gs.aiPlayer.setHealth(defenderHp);
-        //         if (out != null) {
-        //             // gs.syncPlayerStatsUI(out);
-        //             BasicCommands.setPlayer2Health(out, gs.aiPlayer);
-        //             BasicCommands.setUnitHealth(out, defender, gs.aiPlayer.getHealth());
-        //         }
-        //         gs.triggerZeal(out); // Zeal trigger
-        //     }
-        // } else {
-        //     // Regular unit
-        //     gs.setUnitHealth(defender, defenderHp);
-        //     if (out != null) BasicCommands.setUnitHealth(out, defender, defenderHp);
-        //     if (defenderHp <= 0) {
-        //         if (out != null) {
-        //             BasicCommands.playUnitAnimation(out, defender, UnitAnimationType.death);
-        //             try { Thread.sleep(150); } catch (InterruptedException e) { e.printStackTrace(); }
-        //             BasicCommands.deleteUnit(out, defender);
-        //         }
-        //         gs.removeUnitFromBoard(defender, out);
-        //     }
-        // }
+        boolean defenderAlive;
 
         if (defender == gs.aiAvatar) {
             if (defenderHp <= 0) {
@@ -118,22 +78,15 @@ public class CombatHandler {
                 gs.removeUnitFromBoard(defender, out);
             }
         }
-
-        // PHASE 2: Counter Attack
-        // boolean defenderAlive = (defender == gs.aiAvatar)
       
-        //         ? gs.aiPlayer.getHealth() > 0
-        //         : gs.getUnitHealth(defender) > 0;
-        boolean defenderAlive;
-if (defender == gs.aiAvatar) {
-    defenderAlive = gs.aiPlayer.getHealth() > 0;
-} else if (defender == gs.humanAvatar) {
-    defenderAlive = gs.humanPlayer.getHealth() > 0;
-} else {
-    defenderAlive = gs.getUnitHealth(defender) > 0;
-}
+            if (defender == gs.aiAvatar) {
+                defenderAlive = gs.aiPlayer.getHealth() > 0;
+            } else if (defender == gs.humanAvatar) {
+                defenderAlive = gs.humanPlayer.getHealth() > 0;
+            } else {
+                defenderAlive = gs.getUnitHealth(defender) > 0;
+            }
 
-        System.out.println("[COMBAT] defenderAlive=" + defenderAlive + " defender==" + (defender == gs.aiAvatar ? "aiAvatar" : "unit"));
 
         if (defenderAlive) {
             System.out.println("[COMBAT] Counter attack firing, counterDmg=" 
@@ -150,13 +103,9 @@ if (defender == gs.aiAvatar) {
             if (attacker == gs.humanAvatar) {
                 // Human Avatar takes damage
                 gs.humanPlayer.setHealth(attackerHp);
-                System.out.println("[COMBAT] attackerHp=" + attackerHp + " humanPlayer.getHealth()=" + gs.humanPlayer.getHealth());
                 if (out != null) {
-                    // gs.syncPlayerStatsUI(out);
-                    // BasicCommands.setPlayer1Health(out, gs.humanPlayer);
                     BasicCommands.setPlayer1Health(out, gs.humanPlayer);
                     try { Thread.sleep(100); } catch (InterruptedException e) { e.printStackTrace(); }
-                    // BasicCommands.setUnitHealth(out, attacker, gs.humanPlayer.getHealth());
                     BasicCommands.setUnitHealth(out, attacker, attackerHp);
                 }
                 if (attackerHp <= 0) {
@@ -167,7 +116,6 @@ if (defender == gs.aiAvatar) {
                 // AI Avatar counter takes damage (rare case)
                 gs.aiPlayer.setHealth(attackerHp);
                 if (out != null) {
-                    // gs.syncPlayerStatsUI(out);
 
                     BasicCommands.setPlayer2Health(out, gs.aiPlayer);
                     BasicCommands.setUnitHealth(out, attacker, gs.aiPlayer.getHealth());

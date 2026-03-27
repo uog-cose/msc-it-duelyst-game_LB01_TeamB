@@ -118,12 +118,20 @@ public class CombatHandler {
                 gs.removeUnitFromBoard(defender, out);
             }
         }
-        
+
         // PHASE 2: Counter Attack
-        boolean defenderAlive = (defender == gs.aiAvatar)
+        // boolean defenderAlive = (defender == gs.aiAvatar)
       
-                ? gs.aiPlayer.getHealth() > 0
-                : gs.getUnitHealth(defender) > 0;
+        //         ? gs.aiPlayer.getHealth() > 0
+        //         : gs.getUnitHealth(defender) > 0;
+        boolean defenderAlive;
+if (defender == gs.aiAvatar) {
+    defenderAlive = gs.aiPlayer.getHealth() > 0;
+} else if (defender == gs.humanAvatar) {
+    defenderAlive = gs.humanPlayer.getHealth() > 0;
+} else {
+    defenderAlive = gs.getUnitHealth(defender) > 0;
+}
 
         System.out.println("[COMBAT] defenderAlive=" + defenderAlive + " defender==" + (defender == gs.aiAvatar ? "aiAvatar" : "unit"));
 
@@ -159,10 +167,16 @@ public class CombatHandler {
                 // AI Avatar counter takes damage (rare case)
                 gs.aiPlayer.setHealth(attackerHp);
                 if (out != null) {
-                    gs.syncPlayerStatsUI(out);
+                    // gs.syncPlayerStatsUI(out);
+
+                    BasicCommands.setPlayer2Health(out, gs.aiPlayer);
                     BasicCommands.setUnitHealth(out, attacker, gs.aiPlayer.getHealth());
                 }
                 gs.triggerZeal(out);
+                if (attackerHp <= 0) {
+                    gs.endGame(out, "You Win!");
+                    return;
+                }
             } else {
                 // Regular unit counter
                 gs.setUnitHealth(attacker, attackerHp);

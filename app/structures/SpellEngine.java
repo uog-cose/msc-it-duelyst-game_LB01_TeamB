@@ -148,10 +148,17 @@ public class SpellEngine {
             }
             System.out.println("[SpellEngine] AI cast Sundrop Elixir on " + gs.getUnitName(target));
             return true;
-        }
 
-        System.out.println("[SpellEngine] AI: unrecognised spell " + spellName);
-        return false;
+        } else if ("Beamshock".equalsIgnoreCase(spellName)) {
+            System.out.println("[SpellEngine] AI cast Beamshock (fallback)");
+            return true; // 防止AI卡住
+        } else if ("Horn of the Forsaken".equalsIgnoreCase(spellName)) {
+            System.out.println("[SpellEngine] AI cast Horn (fallback)");
+            return true;
+        } else {
+            System.out.println("[SpellEngine] AI: unrecognised spell " + spellName);
+            return false;
+        }
     }
 
 

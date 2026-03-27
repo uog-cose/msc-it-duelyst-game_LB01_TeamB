@@ -42,6 +42,8 @@ public class GameState {
     public Unit pendingAttacker = null;
     public Unit pendingDefender = null;
 
+    public int humanHornDurability = 0;
+
     // Runtime HP tracking for non-avatar units (avatars use Player health)
     public Map<Unit, Integer> unitHealth = new HashMap<>();
     public Map<Unit, Integer> unitAttack = new HashMap<>();
@@ -635,6 +637,11 @@ public class GameState {
             commands.BasicCommands.setUnitHealth(out, wraithling, 1);
             commands.BasicCommands.setUnitAttack(out, wraithling, 1);
         }
+    }
+
+    public void equipHornOfTheForsaken() {
+        humanHornDurability = 3;
+        System.out.println("[HORN] equipped on human avatar, durability=3");
     }
 
     public void castWraithlingSwarm(ActorRef out) {

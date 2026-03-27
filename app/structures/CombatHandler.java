@@ -11,6 +11,38 @@ import structures.basic.UnitAnimationType;
  */
 public class CombatHandler {
 
+    private static void triggerHornOnAvatarHit(ActorRef out, GameState gs, Unit attacker, Unit defender) {
+        if (attacker != gs.humanAvatar) {
+            return;
+        }
+        if (gs.humanHornDurability <= 0) {
+            return;
+        }
+        if (defender == null) {
+            return;
+        }
+
+        Tile avatarTile = gs.findTileContainingUnit(attacker);
+        if (avatarTile == null) {
+            return;
+        }
+
+        Tile spawnTile = gs.getRandomAdjacentFreeTile(avatarTile);
+        if (spawnTile == null) {
+            System.out.println("[HORN] avatar dealt damage but no free adjacent tile for Wraithling");
+            return;
+        }
+
+        gs.spawnWraithling(out, spawnTile, true);
+        gs.humanHornDurability--;
+        System.out.println("[HORN] triggered, spawned Wraithling, durability=" + gs.humanHornDurability);
+
+        if (gs.humanHornDurability <= 0) {
+            gs.humanHornDurability = 0;
+            System.out.println("[HORN] expired");
+        }
+    }
+
     public static void executeAttack(ActorRef out, GameState gs, Unit attacker, Unit defender) {
 
         // Attack animations
@@ -23,6 +55,10 @@ public class CombatHandler {
         int attackDmg = gs.getUnitAttack(attacker);
         int defenderHp = gs.getUnitHealth(defender) - attackDmg;
         defenderHp = Math.max(0, defenderHp);
+
+        if (attackDmg > 0) {
+            triggerHornOnAvatarHit(out, gs, attacker, defender);
+        }
 
         // if (defender == gs.aiAvatar) {
         //     if (defenderHp <= 0) {
@@ -135,9 +171,19 @@ if (defender == gs.aiAvatar) {
 
         System.out.println("[COMBAT] defenderAlive=" + defenderAlive + " defender==" + (defender == gs.aiAvatar ? "aiAvatar" : "unit"));
 
-        if (defenderAlive) {
-            System.out.println("[COMBAT] Counter attack firing, counterDmg=" 
-            + gs.getUnitAttack(defender));
+        Tile attackerTileAfterHit = gs.findTileContainingUnit(attacker);
+        Tile defenderTileAfterHit = gs.findTileContainingUnit(defender);
+        boolean counterAllowed = defenderAlive;
+
+        if (counterAllowed && attackerTileAfterHit != null && defenderTileAfterHit != null) {
+            int counterDx = Math.abs(attackerTileAfterHit.getTilex() - defenderTileAfterHit.getTilex());
+            int counterDy = Math.abs(attackerTileAfterHit.getTiley() - defenderTileAfterHit.getTiley());
+            counterAllowed = counterDx <= 1 && counterDy <= 1 && !(counterDx == 0 && counterDy == 0);
+        }
+
+        if (counterAllowed) {
+            System.out.println("[COMBAT] Counter attack firing, counterDmg="
+                    + gs.getUnitAttack(defender));
             int counterDmg = gs.getUnitAttack(defender);
             int attackerHp = gs.getUnitHealth(attacker) - counterDmg;
             attackerHp = Math.max(0, attackerHp);
@@ -190,6 +236,10 @@ if (defender == gs.aiAvatar) {
                     gs.removeUnitFromBoard(attacker, out);
                 }
             }
+        }
+
+        if (defenderAlive && !counterAllowed) {
+            System.out.println("[COMBAT] Counter attack skipped: defender not in counter range");
         }
 
         gs.markUnitAsAttacked(attacker);

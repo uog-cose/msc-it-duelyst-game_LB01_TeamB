@@ -79,6 +79,26 @@ public class CardClicked implements EventProcessor {
                 return;
             }
 
+            // Horn of the Forsaken → self cast (no target needed)
+            if ("Horn of the Forsaken".equalsIgnoreCase(gameState.getCardName(clickedCard))) {
+                gameState.equipHornOfTheForsaken();
+
+                gameState.humanPlayer.setMana(gameState.humanPlayer.getMana() - manaCost);
+                if (out != null) {
+                    BasicCommands.setPlayer1Mana(out, gameState.humanPlayer);
+                }
+
+                gameState.syncPlayerStatsUI(out);
+                gameState.humanPlayer.hand.remove(handPosition - 1);
+                gameState.refreshHumanHandUI(out);
+                gameState.clearCardSelection(out);
+                gameState.clearMoveTileHighlights(out);
+                gameState.selectedUnit = null;
+
+                System.out.println("[HORN] cast successfully");
+                return;
+            }
+
             // A Wraithling Swarm, no target needed, cast directly
             if ("Wraithling Swarm".equalsIgnoreCase(gameState.getCardName(clickedCard))) {
                 gameState.humanPlayer.setMana(gameState.humanPlayer.getMana() - manaCost);

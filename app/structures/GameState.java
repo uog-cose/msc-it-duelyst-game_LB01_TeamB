@@ -13,6 +13,8 @@ import structures.basic.Tile;
 import structures.basic.Unit;
 import java.util.HashMap;
 import java.util.Map;
+import structures.MovementEngine;
+import structures.AbilityEngine;
 
 /**
  * This class can be used to hold information about the on-going game.
@@ -36,6 +38,10 @@ public class GameState {
     // Avatars
     public Unit humanAvatar = null;
     public Unit aiAvatar = null;
+    // Pending attack after move
+    public Unit pendingAttacker = null;
+    public Unit pendingDefender = null;
+
     // Runtime HP tracking for non-avatar units (avatars use Player health)
     public Map<Unit, Integer> unitHealth = new HashMap<>();
     public Map<Unit, Integer> unitAttack = new HashMap<>();
@@ -140,96 +146,20 @@ public class GameState {
     // SC-302: Movement highlighting
     // Rules: up to 2 tiles in cardinal directions, 1 tile diagonal
     public void highlightValidMoveTiles(ActorRef out, int startX, int startY) {
-        // Always clear previous move highlights before showing new ones
-        clearMoveTileHighlights(out);
-
-        if (board == null)
-            return;
-
-        int[][] offsets = {
-                // cardinal 1 step
-                { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 },
-                // cardinal 2 steps
-                { 2, 0 }, { -2, 0 }, { 0, 2 }, { 0, -2 },
-                // diagonal 1 step only
-                { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 }
-        };
-
-        for (int[] offset : offsets) {
-            int nx = startX + offset[0];
-            int ny = startY + offset[1];
-            if (!isWithinBoard(nx, ny))
-                continue;
-
-            Tile t = board[nx][ny];
-            if (t == null)
-                continue;
-
-            if (isTileFree(nx, ny)) {
-                BasicCommands.drawTile(out, t, 1); // grey- move tile
-                highlightedMoveTiles.add(t);
-            } else if (t.getUnit() != null && isEnemyUnit(t.getUnit())) {
-                BasicCommands.drawTile(out, t, 2); // red- enemy in range
-                highlightedMoveTiles.add(t);
-            }
-        }
-        System.out.println("[SC-302] Move tiles highlighted: " + highlightedMoveTiles.size()
-                + " from (" + startX + "," + startY + ")");
+        MovementEngine.highlightMoveRange(out, this, startX, startY);
     }
 
     public int highlightValidAttackTiles(ActorRef out, Unit unit) {
-        Tile unitTile = findTileContainingUnit(unit);
-        if (unitTile == null)
-            return 0;
-
-        int ux = unitTile.getTilex();
-        int uy = unitTile.getTiley();
-        int count = 0;
-
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dy = -1; dy <= 1; dy++) {
-                if (dx == 0 && dy == 0)
-                    continue;
-                int nx = ux + dx;
-                int ny = uy + dy;
-                if (!isWithinBoard(nx, ny))
-                    continue;
-
-                Tile t = board[nx][ny];
-                if (t != null && t.getUnit() != null && isEnemyUnit(t.getUnit())) {
-                    BasicCommands.drawTile(out, t, 2); // only red for enemy tile
-                    highlightedMoveTiles.add(t);
-                    count++;
-                }
-            }
-        }
-        return count;
+        return MovementEngine.highlightAttackRange(out, this, unit);
     }
 
     // Clear only movement range highlights
     public void clearMoveTileHighlights(ActorRef out) {
-        for (Tile t : highlightedMoveTiles) {
-            if (out != null) {
-                BasicCommands.drawTile(out, t, 0);
-            }
-            try {
-                Thread.sleep(5);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-        highlightedMoveTiles.clear();
+        MovementEngine.clearMoveHighlights(out, this);
     }
 
     public boolean isHighlightedMoveTile(int x, int y) {
-        if (!isWithinBoard(x, y))
-            return false;
-
-        Tile t = board[x][y];
-        if (t == null)
-            return false;
-
-        return highlightedMoveTiles.contains(t);
+        return MovementEngine.isHighlightedMoveTile(this, x, y);
     }
 
     // SC-201: Summon tile highlighting
@@ -238,6 +168,7 @@ public class GameState {
     public int highlightValidSummonTiles(ActorRef out) {
         // Clear previous summon highlights before showing new ones
         clearSummonTileHighlights(out);
+        clearMoveTileHighlights(out);
 
         int count = 0;
         count += highlightAdjacentFreeTilesAroundUnit(out, humanAvatar);
@@ -318,49 +249,7 @@ public class GameState {
     }
 
     public int highlightValidSpellTargets(ActorRef out, Card spellCard) {
-        clearSpellTileHighlights(out);
-
-        if (spellCard == null)
-            return 0;
-
-        String spellName = getCardName(spellCard);
-        int count = 0;
-
-        for (int x = 0; x < 9; x++) {
-            for (int y = 0; y < 5; y++) {
-                Tile t = board[x][y];
-                if (t == null || t.getUnit() == null)
-                    continue;
-
-                Unit u = t.getUnit();
-                boolean valid = false;
-
-                if ("Dark Terminus".equalsIgnoreCase(spellName)) {
-                    valid = aiUnits.contains(u); // only enemy creatures, not on avatar
-                } else if ("True Strike".equalsIgnoreCase(spellName)) {
-                    valid = aiUnits.contains(u) || u == aiAvatar; // all enemy -> creatures + avatar
-                } else if ("Sundrop Elixir".equalsIgnoreCase(spellName)) {
-                    valid = humanUnits.contains(u) || u == humanAvatar; // all friendly
-                }
-
-                if (valid) {
-                    if (out != null) {
-                        BasicCommands.drawTile(out, t, 1);
-                    }
-                    highlightedSpellTiles.add(t);
-
-                    int uiX = t.getTilex();
-                    int uiY = t.getTiley();
-                    if (uiX >= 0 && uiX < spellTileGridByUiCoords.length
-                            && uiY >= 0 && uiY < spellTileGridByUiCoords[0].length) {
-                        spellTileGridByUiCoords[uiX][uiY] = true;
-                    }
-                    count++;
-                }
-            }
-        }
-
-        return count;
+        return SpellEngine.highlightValidTargets(out, this, spellCard);
     }
 
     public void clearSpellTileHighlights(ActorRef out) {
@@ -388,6 +277,8 @@ public class GameState {
 
     public void setUnitHealth(Unit unit, int hp) {
         if (unit != null) {
+            if (unit == humanAvatar || unit == aiAvatar)
+                return;
             unitHealth.put(unit, hp);
             // setting max health for 1st attempt
             unitMaxHealth.putIfAbsent(unit, hp);
@@ -598,7 +489,8 @@ public class GameState {
 
     public void clearCardSelection(ActorRef out) {
         if (selectedCard != null && selectedHandPosition >= 1) {
-            if (out != null) {
+            // if (out != null) {
+            if (out != null && humanPlayer.hand.contains(selectedCard)) {
                 BasicCommands.drawCard(out, selectedCard, selectedHandPosition, 0);
             }
         }
@@ -746,248 +638,21 @@ public class GameState {
     }
 
     public void castWraithlingSwarm(ActorRef out) {
-        int summoned = 0;
-
-        // Priority: avatar's adjacent tiles first then units, to maximize chances of
-        // summoning if space is tight
-        List<Unit> friendlies = new ArrayList<>(humanUnits);
-        friendlies.add(0, humanAvatar); // avatar pehle check ho
-
-        outer: for (Unit friendly : friendlies) {
-            Tile ft = findTileContainingUnit(friendly);
-            if (ft == null)
-                continue;
-
-            for (int dx = -1; dx <= 1; dx++) {
-                for (int dy = -1; dy <= 1; dy++) {
-                    if (summoned >= 3)
-                        break outer;
-                    if (dx == 0 && dy == 0)
-                        continue;
-                    int nx = ft.getTilex() + dx;
-                    int ny = ft.getTiley() + dy;
-                    if (!isWithinBoard(nx, ny))
-                        continue;
-                    if (!isTileFree(nx, ny))
-                        continue;
-
-                    spawnWraithling(out, board[nx][ny], true);
-                    summoned++;
-                }
-            }
-        }
-
-        if (summoned == 0 && out != null) {
-            commands.BasicCommands.addPlayer1Notification(out, "No space for Wraithlings!", 2);
-        }
-        System.out.println("[WRAITHLING SWARM] spawned " + summoned + " wraithlings");
+        AbilityEngine.castWraithlingSwarm(out, this);
     }
 
     // Deathwatch will be triggered whenever any unit dies
     public void triggerDeathwatch(ActorRef out) {
-        List<Unit> snapshot = new ArrayList<>(humanUnits); // copying human units to avoid concurrent modification
-        for (Unit unit : snapshot) {
-            String name = getUnitName(unit);
-            if (name.isEmpty())
-                continue;
-
-            if ("bad_omen".equalsIgnoreCase(name)) {
-                // +1 attack permanently
-                int newAtk = getUnitAttack(unit) + 1;
-                setUnitAttack(unit, newAtk);
-                if (out != null) {
-                    commands.BasicCommands.setUnitAttack(out, unit, newAtk);
-                }
-                System.out.println("[DEATHWATCH] Bad Omen +1 attack → " + newAtk);
-
-            } else if ("shadow_watcher".equalsIgnoreCase(name)) {
-                System.out.println("[DEBUG] Shadow Watcher triggered id=" + unit.getId());
-                // +1 attack +1 health permanently
-                int newAtk = getUnitAttack(unit) + 1;
-                int newHp = getUnitHealth(unit) + 1;
-                setUnitAttack(unit, newAtk);
-                setUnitHealth(unit, newHp);
-                if (out != null) {
-                    commands.BasicCommands.setUnitHealth(out, unit, newHp);
-                    // adding this for shadow wather health to update after to display ability
-                    // benifits of any unit death
-                    try {
-                        Thread.sleep(50);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                    commands.BasicCommands.setUnitAttack(out, unit, newAtk);
-                    // commands.BasicCommands.setUnitHealth(out, unit, newHp);
-                }
-                System.out.println("[DEATHWATCH] Shadow Watcher +1/+1");
-
-            } else if ("bloodmoon_priestess".equalsIgnoreCase(name)) {
-                // Wraithling summon on random adjacent free tile
-                Tile unitTile = findTileContainingUnit(unit);
-                if (unitTile == null)
-                    continue;
-                Tile spawnTile = getRandomAdjacentFreeTile(unitTile);
-                if (spawnTile == null)
-                    continue;
-                spawnWraithling(out, spawnTile, true); // true = human
-                System.out.println("[DEATHWATCH] Bloodmoon Priestess spawned Wraithling");
-
-            } else if ("shadowdancer".equalsIgnoreCase(name)) {
-                System.out.println("[DEBUG] Shadowdancer triggered id=" + unit.getId());
-                // 1 damage to enemy avatar + heal self 1
-                int aiHp = aiPlayer.getHealth() - 1;
-                aiPlayer.setHealth(aiHp);
-
-                int selfHp = humanPlayer.getHealth() + 1;
-                humanPlayer.setHealth(selfHp);
-
-                if (out != null) {
-                    commands.BasicCommands.setUnitHealth(out, aiAvatar, aiHp);
-                    commands.BasicCommands.setUnitHealth(out, humanAvatar, selfHp);
-                    syncPlayerStatsUI(out);
-                }
-                System.out.println("[DEATHWATCH] Shadowdancer 1 dmg AI + 1 heal human");
-
-                // Win condition check
-                if (aiHp <= 0) {
-                    endGame(out, "You Win!");
-                    return;
-                }
-            }
-        }
+        AbilityEngine.triggerDeathwatch(out, this);
     }
 
     public void triggerOpeningGambit(ActorRef out, Unit summoned, Tile summonedTile, boolean isHuman) {
-        String name = getUnitName(summoned);
-        if (name.isEmpty())
-            return;
-
-        if ("gloom_chaser".equalsIgnoreCase(name)) {
-            // Wraithling summon directly behind (x-1 for human, x+1 for AI)
-            int behindX = isHuman ? summonedTile.getTilex() - 1 : summonedTile.getTilex() + 1;
-            int behindY = summonedTile.getTiley();
-
-            if (isWithinBoard(behindX, behindY) && isTileFree(behindX, behindY)) {
-                spawnWraithling(out, board[behindX][behindY], isHuman);
-                System.out.println("OPENING GAMBIT Gloom Chaser spawned Wraithling behind");
-            } else {
-                System.out.println("OPENING GAMBIT Gloom Chaser: space occupied, no effect");
-            }
-
-        } else if ("nightsorrow_assassin".equalsIgnoreCase(name)) {
-            // Destroy adjacent enemy unit that is below max health
-            int tx = summonedTile.getTilex();
-            int ty = summonedTile.getTiley();
-
-            for (int dx = -1; dx <= 1; dx++) {
-                for (int dy = -1; dy <= 1; dy++) {
-                    if (dx == 0 && dy == 0)
-                        continue;
-                    int nx = tx + dx;
-                    int ny = ty + dy;
-                    if (!isWithinBoard(nx, ny))
-                        continue;
-
-                    Tile t = board[nx][ny];
-                    if (t == null || t.getUnit() == null)
-                        continue;
-
-                    Unit target = t.getUnit();
-                    boolean isEnemy = isHuman
-                            ? (target == aiAvatar || aiUnits.contains(target))
-                            : (target == humanAvatar || humanUnits.contains(target));
-
-                    if (!isEnemy)
-                        continue;
-
-                    // Check if below max health
-                    int currentHp = getUnitHealth(target);
-                    int maxHp = unitMaxHealth.getOrDefault(target, currentHp);
-
-                    if (currentHp < maxHp) {
-                        if (out != null) {
-                            commands.BasicCommands.playUnitAnimation(out, target,
-                                    structures.basic.UnitAnimationType.death);
-                            try {
-                                Thread.sleep(100);
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                            commands.BasicCommands.deleteUnit(out, target);
-                        }
-                        removeUnitFromBoard(target, out);
-                        System.out.println("OPENING GAMBIT, Nightsorrow Assassin destroyed damaged enemy");
-                        return; // destroy only one unit
-                    }
-                }
-            }
-            System.out.println("OPENING GAMBIT, Nightsorrow Assassin: no damaged enemy adjacent");
-        } else if ("silverguard_squire".equalsIgnoreCase(name)) {
-            // +1/+1 to adjacent allied unit directly in front or behind owning avatar
-            Unit ownerAvatar = isHuman ? humanAvatar : aiAvatar;
-            Tile avatarTile = findTileContainingUnit(ownerAvatar);
-            if (avatarTile == null)
-                return;
-
-            int ax = avatarTile.getTilex();
-            int ay = avatarTile.getTiley();
-
-            // front (left) aur behind (right) check karo
-            int[] checkX = { ax - 1, ax + 1 };
-
-            for (int nx : checkX) {
-                if (!isWithinBoard(nx, ay))
-                    continue;
-                Tile t = board[nx][ay];
-                if (t == null || t.getUnit() == null)
-                    continue;
-
-                Unit target = t.getUnit();
-                // sirf allied units — avatar nahi
-                boolean isAlly = isHuman
-                        ? humanUnits.contains(target)
-                        : aiUnits.contains(target);
-
-                if (!isAlly)
-                    continue;
-
-                // +1 attack +1 health permanently
-                int newAtk = getUnitAttack(target) + 1;
-                int newHp = getUnitHealth(target) + 1;
-                // max health bhi update karo
-                unitMaxHealth.put(target, unitMaxHealth.getOrDefault(target, newHp - 1) + 1);
-                setUnitAttack(target, newAtk);
-                setUnitHealth(target, newHp);
-
-                if (out != null) {
-                    commands.BasicCommands.setUnitAttack(out, target, newAtk);
-                    try {
-                        Thread.sleep(50);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                    commands.BasicCommands.setUnitHealth(out, target, newHp);
-                }
-                System.out.println("OPENING GAMBIT Silverguard Squire +1/+1 to "
-                        + getUnitName(target));
-            }
-        }
+        AbilityEngine.triggerOpeningGambit(out, this, summoned, summonedTile, isHuman);
     }
 
     // Zeal: When AI avatar takes damage , Silverguard Knight gets +2 attack
     public void triggerZeal(ActorRef out) {
-        List<Unit> snapshot = new ArrayList<>(aiUnits);
-        for (Unit unit : snapshot) {
-            String name = getUnitName(unit);
-            if ("silverguard_knight".equalsIgnoreCase(name)) {
-                int newAtk = getUnitAttack(unit) + 2;
-                setUnitAttack(unit, newAtk);
-                if (out != null) {
-                    commands.BasicCommands.setUnitAttack(out, unit, newAtk);
-                }
-                System.out.println("ZEAL Silverguard Knight +2 attack ->" + newAtk);
-            }
-        }
+        AbilityEngine.triggerZeal(out, this);
     }
 
     public void endGame(ActorRef out, String message) {

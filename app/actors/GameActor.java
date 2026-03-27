@@ -71,9 +71,6 @@ public class GameActor extends AbstractActor {
 		eventProcessors.put("endturnclicked", new EndTurnClicked());
 		eventProcessors.put("otherclicked", new OtherClicked());
 
-		// Initalize a new game state object
-		// this.gameState = new GameState();
-
 		// Get the list of image files to pre-load the UI with
 		Set<String> images = ImageListForPreLoad.getImageListForPreLoad();
 
@@ -86,16 +83,6 @@ public class GameActor extends AbstractActor {
 			e.printStackTrace();
 		}
 	}
-
-	//Commenting as game state is already created at top class level , not required in constructor
-	
-	// public GameState getGameState() {
-	// 	return gameState;
-	// }
-
-	// public boolean hasGameState() {
-	// 	return gameState != null;
-	// }
 
 	/**
 	 * This method simply farms out the processing of the json messages from the

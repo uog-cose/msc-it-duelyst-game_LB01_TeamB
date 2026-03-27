@@ -24,8 +24,6 @@ public class EndTurnClicked implements EventProcessor {
 	@Override
 	public void processEvent(ActorRef out, GameState gameState, JsonNode message) {
 
-		System.out.println("END TURN CLICKED: humanTurn was " + gameState.humanTurn + " turn=" + gameState.turnNumber);
-
 		// SC-505 Turn End Cleanup / State Reset
 		// Optimized: Only clear tiles that are actually highlighted to prevent
 		// WebSocket buffer overflow.
@@ -93,8 +91,13 @@ public class EndTurnClicked implements EventProcessor {
 		}
 
 		// SC-402: Use new utility to sync UI easily
+
 		if (out != null) {
-			gameState.syncPlayerStatsUI(out);
+			if (gameState.humanTurn) {
+				BasicCommands.setPlayer1Mana(out, gameState.humanPlayer);
+			} else {
+				BasicCommands.setPlayer2Mana(out, gameState.aiPlayer);
+			}
 		}
 
 		// AI turn triggers here
@@ -105,6 +108,9 @@ public class EndTurnClicked implements EventProcessor {
 				e.printStackTrace();
 			}
 			new AITurn().execute(out, gameState);
+			if (out != null) { 
+			BasicCommands.setPlayer1Mana(out, gameState.humanPlayer);
+			}
 		}
 	}
 

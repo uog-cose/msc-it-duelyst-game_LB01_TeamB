@@ -2,6 +2,7 @@ package utils;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import structures.basic.Card;
@@ -21,22 +22,38 @@ public class OrderedCardLoader {
 	 * @return
 	 */
 	public static List<Card> getPlayer1Cards(int copies) {
-	
-		List<Card> cardsInDeck = new ArrayList<Card>(20);
-		
-		int cardID = 1;
-		for (int i =0; i<copies; i++) {
-			for (String filename : new File(cardsDIR).list()) {
-				if (filename.startsWith("1_")) {
-					// this is a deck 1 card
-					cardsInDeck.add(BasicObjectBuilders.loadCard(cardsDIR+filename, cardID, Card.class));
-				}
-			}
-		}
-		
-		
-		return cardsInDeck;
-	}
+ 
+     List<Card> cardsInDeck = new ArrayList<Card>(20);
+ 
+     // Get the list of files
+ 
+     String[] files = new File(cardsDIR).list();
+ 
+     if (files == null) return cardsInDeck;
+ 
+    // SORT the files to ensure cross-platform consistency (Mac vs Windows)
+ 
+     Arrays.sort(files);
+ 
+    int cardID = 1;
+ 
+     for (int i = 0; i < copies; i++) {
+ 
+         for (String filename : files) {
+ 
+             if (filename.startsWith("1_")) {
+ 
+                 cardsInDeck.add(BasicObjectBuilders.loadCard(cardsDIR + filename, cardID++, Card.class));
+ 
+             }
+ 
+         }
+ 
+     }
+ 
+     return cardsInDeck;
+ 
+ }
 	
 	
 	/**
@@ -44,20 +61,37 @@ public class OrderedCardLoader {
 	 * @return
 	 */
 	public static List<Card> getPlayer2Cards(int copies) {
-	
+ 
 		List<Card> cardsInDeck = new ArrayList<Card>(20);
-		
-		int cardID = 1;
-		for (int i =0; i<copies; i++) {
-			for (String filename : new File(cardsDIR).list()) {
+	
+		String[] files = new File(cardsDIR).list();
+	
+		if (files == null) return cardsInDeck;
+	
+	   // MANDATORY: Sort to ensure Mac and Windows see the same AI deck order
+	
+		Arrays.sort(files);
+	
+	   int cardID = 1;
+	
+		for (int i = 0; i < copies; i++) {
+	
+			for (String filename : files) {
+	
+				// Player 2 cards are prefixed with "2_"
+	
 				if (filename.startsWith("2_")) {
-					// this is a deck 2 card
-					cardsInDeck.add(BasicObjectBuilders.loadCard(cardsDIR+filename, cardID, Card.class));
+	
+					cardsInDeck.add(BasicObjectBuilders.loadCard(cardsDIR + filename, cardID++, Card.class));
+	
 				}
+	
 			}
+	
 		}
-		
+	
 		return cardsInDeck;
+	
 	}
 	
 }

@@ -113,6 +113,7 @@ public class EndTurnClicked implements EventProcessor {
 				e.printStackTrace();
 			}
 			new AITurn().execute(out, gameState);
+			BasicCommands.setPlayer1Mana(out, gameState.humanPlayer);
 		}
 	}
 

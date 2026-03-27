@@ -169,6 +169,7 @@ public class MovementEngine {
 
         if (out != null) {
             BasicCommands.moveUnitToTile(out, unit, targetTile);
+            try { Thread.sleep(150); } catch (InterruptedException e) { e.printStackTrace(); }
         }
 
         System.out.println("[MovementEngine] executeMove to ("

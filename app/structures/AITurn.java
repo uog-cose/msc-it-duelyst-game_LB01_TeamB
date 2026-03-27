@@ -183,7 +183,7 @@ public class AITurn {
             // AI needs a small sleep so animation doesn't pile up
             if (out != null) {
                 try {
-                    Thread.sleep(500);
+                    Thread.sleep(1500);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }

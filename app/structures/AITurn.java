@@ -23,18 +23,11 @@ public class AITurn {
 
         System.out.println("AI Turn starting-> turn=" + gameState.turnNumber);
 
-        // Step 1: Play affordable creature cards
-        playCards(out, gameState);
-
-        // Step 2: Move units toward enemies
-        moveUnits(out, gameState);
-
-        // Step 3: Attack with units
-        attackWithUnits(out, gameState);
-
-        // Step 4: End AI turn
-        endAITurn(out, gameState);
-
+      
+        playCards(out, gameState);   // Step 1: Play affordable creature cards
+        moveUnits(out, gameState); // Step 2: Move units toward enemies
+        attackWithUnits(out, gameState); // Step 3: Attack with units
+        endAITurn(out, gameState);  // Step 4: End AI turn
         System.out.println("AI Turn complete");
     }
 
@@ -53,15 +46,12 @@ public class AITurn {
             int manaCost = gameState.getCardManaCost(card);
             if (manaCost > gameState.aiPlayer.getMana())
                 continue;
-            // if (!card.isCreature())
-            // continue; // spells I will implement later
 
             if (!card.isCreature()) {
                 boolean cast = SpellEngine.aiCastSpell(out, gameState, card);
                 if (cast) {
                     gameState.aiPlayer.setMana(gameState.aiPlayer.getMana() - manaCost);
                     gameState.aiPlayer.hand.remove(card);
-                    // gameState.syncPlayerStatsUI(out);
                     BasicCommands.setPlayer2Mana(out, gameState.aiPlayer);
                 }
                 continue;
@@ -114,7 +104,6 @@ public class AITurn {
                 }
                 BasicCommands.setUnitHealth(out, unit, hp);
                 BasicCommands.setUnitAttack(out, unit, atk);
-                // gameState.syncPlayerStatsUI(out);
                 BasicCommands.setPlayer2Health(out, gameState.aiPlayer);
                 BasicCommands.setPlayer2Mana(out, gameState.aiPlayer);
             }
@@ -297,24 +286,8 @@ public class AITurn {
         int mana = Math.min(9, gameState.turnNumber + 1);
         gameState.humanPlayer.setMana(mana);
 
-        // Draw card for human
-        // if (gameState.humanPlayer.deck != null && !gameState.humanPlayer.deck.isEmpty()) {
-        //     if (gameState.humanPlayer.hand.size() < 6) {
-        //         Card drawn = gameState.humanPlayer.deck.remove(0);
-        //         gameState.humanPlayer.hand.add(drawn);
-        //         int pos = gameState.humanPlayer.hand.size();
-        //         if (out != null) {
-        //             BasicCommands.drawCard(out, drawn, pos, 0);
-        //         }
-        //     }
-        // }
-
-        
-
         if (out != null) {
-            // gameState.syncPlayerStatsUI(out);
             BasicCommands.addPlayer1Notification(out, "Your Turn!", 2);
-            // BasicCommands.addPlayer1Notification(out, "Your Turn!", 2);
         }
 
         System.out.println("AI Turn ended-> human turn starts, turn=" + gameState.turnNumber);

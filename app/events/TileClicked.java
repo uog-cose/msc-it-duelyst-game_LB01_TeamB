@@ -314,7 +314,6 @@ public class TileClicked implements EventProcessor {
         }
 
         // Clicked empty/irrelevant tile — clear everything
-        System.out.println("[TileClicked] clearing selection");
         gameState.clearMoveTileHighlights(out);
         gameState.selectedUnit = null;
     }
